@@ -7,7 +7,7 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Container } from '@mui/material';
 import { useNotifications } from '../hooks/useNotifications';
-import { getGitHubPat, setGitHubPat } from '../api/client';
+import { setApiKey, hasApiKey, getGitHubPat, setGitHubPat } from '../api/client';
 
 export const HomeView = () => {
     const [sessions, setSessions] = useState<Record<string, any>[]>([]);
@@ -16,6 +16,8 @@ export const HomeView = () => {
     const [error, setError] = useState('');
     const notifiedSessionsRef = useRef<Set<string>>(new Set());
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [authOpen, setAuthOpen] = useState(!hasApiKey());
+    const [tempApiKey, setTempApiKey] = useState('');
     const [tempPat, setTempPat] = useState(getGitHubPat());
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -76,6 +78,22 @@ export const HomeView = () => {
     const handleSaveSettings = () => {
         setGitHubPat(tempPat);
         setSettingsOpen(false);
+    };
+
+    const handleSaveAuth = () => {
+        if (tempApiKey.trim()) {
+            setApiKey(tempApiKey.trim());
+            setAuthOpen(false);
+            fetchSessions(true);
+        }
+    };
+
+    const handleClearCredentials = () => {
+        if (confirm('Clear all stored API keys and GitHub tokens?')) {
+            localStorage.removeItem('jules_api_key');
+            localStorage.removeItem('github_pat');
+            window.location.reload();
+        }
     };
 
     const handleApprove = async (e: React.MouseEvent, sessionId: string) => {
@@ -185,10 +203,44 @@ export const HomeView = () => {
                             placeholder="ghp_..."
                             variant="outlined"
                         />
+                        <Button
+                            color="error"
+                            variant="text"
+                            onClick={handleClearCredentials}
+                            sx={{ mt: 2 }}
+                            fullWidth
+                        >
+                            Clear All Credentials
+                        </Button>
                     </DialogContent>
                     <DialogActions sx={{ px: 3, pb: 2 }}>
                         <Button onClick={() => setSettingsOpen(false)}>Cancel</Button>
                         <Button onClick={handleSaveSettings} variant="contained" color="primary">Save</Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* API Key Setup Dialog */}
+                <Dialog open={authOpen} onClose={() => { if (hasApiKey()) setAuthOpen(false); }} fullWidth maxWidth="xs">
+                    <DialogTitle>Setup Jules API Key</DialogTitle>
+                    <DialogContent>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            To get started, please provide your Jules API Key. This will be stored securely in your browser's local storage.
+                        </Typography>
+                        <TextField
+                            fullWidth
+                            label="Jules API Key"
+                            type="password"
+                            value={tempApiKey}
+                            onChange={(e) => setTempApiKey(e.target.value)}
+                            placeholder="AQ..."
+                            variant="outlined"
+                            autoFocus
+                        />
+                    </DialogContent>
+                    <DialogActions sx={{ px: 3, pb: 2 }}>
+                        <Button onClick={handleSaveAuth} variant="contained" color="primary" disabled={!tempApiKey.trim()}>
+                            Save and Continue
+                        </Button>
                     </DialogActions>
                 </Dialog>
 

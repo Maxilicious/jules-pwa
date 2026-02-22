@@ -1,7 +1,7 @@
 export const API_BASE = 'https://jules.googleapis.com/v1alpha';
 
 export const getApiKey = () => {
-    return localStorage.getItem('jules_api_key') || import.meta.env.VITE_JULES_API_KEY || '';
+    return localStorage.getItem('jules_api_key') || '';
 };
 
 export const setApiKey = (key: string) => {
@@ -13,7 +13,7 @@ export const hasApiKey = () => {
 };
 
 export const getGitHubPat = () => {
-    return localStorage.getItem('github_pat') || import.meta.env.VITE_GITHUB_PAT || '';
+    return localStorage.getItem('github_pat') || '';
 };
 
 export const setGitHubPat = (pat: string) => {
