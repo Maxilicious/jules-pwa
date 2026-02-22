@@ -8,6 +8,24 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      workbox: {
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/jules\.googleapis\.com\/v1alpha\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'jules-api-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 1 week
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'Jules AI PWA',
         short_name: 'Jules',
@@ -15,6 +33,25 @@ export default defineConfig({
         theme_color: '#131314',
         background_color: '#131314',
         display: 'standalone',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: 'pwa-maskable.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'maskable'
+          }
+        ]
       }
     })
   ]

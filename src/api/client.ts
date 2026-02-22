@@ -12,6 +12,18 @@ export const hasApiKey = () => {
     return !!getApiKey();
 };
 
+export const getGitHubPat = () => {
+    return localStorage.getItem('github_pat') || import.meta.env.VITE_GITHUB_PAT || '';
+};
+
+export const setGitHubPat = (pat: string) => {
+    localStorage.setItem('github_pat', pat);
+};
+
+export const hasGitHubPat = () => {
+    return !!getGitHubPat();
+};
+
 const fetchJules = async (endpoint: string, options: RequestInit = {}) => {
     const apiKey = getApiKey();
     if (!apiKey) {
@@ -65,6 +77,7 @@ export const createSession = async (
                 },
             },
             requirePlanApproval,
+            automationMode: 'AUTO_CREATE_PR',
         }),
     });
 };
@@ -77,4 +90,35 @@ export const approvePlan = async (sessionId: string) => {
 
 export const listSessionActivities = async (sessionId: string) => {
     return fetchJules(`/sessions/${sessionId}/activities`);
+};
+
+export const sendMessage = async (sessionId: string, prompt: string) => {
+    return fetchJules(`/sessions/${sessionId}:sendMessage`, {
+        method: 'POST',
+        body: JSON.stringify({ prompt }),
+    });
+};
+
+export const mergePullRequest = async (owner: string, repo: string, pullNumber: number) => {
+    const pat = getGitHubPat();
+    if (!pat) throw new Error('GitHub PAT is missing');
+
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}/merge`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `token ${pat}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            merge_method: 'squash', // Default to squash merge for cleaner history
+        }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`GitHub Error: ${response.status} - ${errorText}`);
+    }
+
+    return response.json();
 };
