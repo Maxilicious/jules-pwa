@@ -1,4 +1,5 @@
 export const API_BASE = 'https://jules.googleapis.com/v1alpha';
+import { uploadSettings } from './sync';
 
 export const getApiKey = () => {
     return localStorage.getItem('jules_api_key') || '';
@@ -6,6 +7,7 @@ export const getApiKey = () => {
 
 export const setApiKey = (key: string) => {
     localStorage.setItem('jules_api_key', key);
+    uploadSettings().catch(console.error);
 };
 
 export const hasApiKey = () => {
@@ -18,6 +20,7 @@ export const getGitHubPat = () => {
 
 export const setGitHubPat = (pat: string) => {
     localStorage.setItem('github_pat', pat);
+    uploadSettings().catch(console.error);
 };
 
 export const hasGitHubPat = () => {
