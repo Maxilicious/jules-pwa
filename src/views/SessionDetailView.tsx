@@ -349,72 +349,86 @@ export const SessionDetailView = () => {
                     )}
 
                     {hasOutputs && (
-                        <Box sx={{ bgcolor: 'success.dark', color: 'success.contrastText', p: 3, borderRadius: 4, mb: 2 }}>
-                            <Stack spacing={2}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <CheckCircleIcon />
-                                    <Typography variant="h6">Ready to Merge</Typography>
+                        <Box sx={{
+                            bgcolor: 'background.paper',
+                            p: 3,
+                            borderRadius: 4,
+                            mb: 2,
+                            boxShadow: 2,
+                            borderTop: '6px solid',
+                            borderColor: 'success.main'
+                        }}>
+                            <Stack spacing={3}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'success.main' }}>
+                                    <CheckCircleIcon fontSize="medium" />
+                                    <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 700 }}>Ready to Merge</Typography>
                                 </Box>
 
-                                {session.outputs.map((out: Record<string, any>, i: number) => (
-                                    out.pullRequest ? (
-                                        <Box key={i} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{out.pullRequest.title}</Typography>
-                                            <Typography variant="body2" sx={{ opacity: 0.9 }}>{out.pullRequest.description}</Typography>
+                                {session.outputs.map((out: Record<string, any>, i: number) => {
+                                    if (out.pullRequest) {
+                                        return (
+                                            <Box key={i} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                                                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                                    {out.pullRequest.title}
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
+                                                    {out.pullRequest.description}
+                                                </Typography>
 
-                                            <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                                                <Button
-                                                    variant="contained"
-                                                    color="secondary"
-                                                    fullWidth
-                                                    size="large"
-                                                    startIcon={<OpenInNewIcon />}
-                                                    onClick={() => window.open(out.pullRequest.url, '_blank')}
-                                                    sx={{
-                                                        borderRadius: 3,
-                                                        fontWeight: 700,
-                                                        textTransform: 'none',
-                                                        fontSize: '1rem',
-                                                        py: 1.5
-                                                    }}
-                                                >
-                                                    View on GitHub
-                                                </Button>
+                                                <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="inherit"
+                                                        fullWidth
+                                                        size="large"
+                                                        startIcon={<OpenInNewIcon />}
+                                                        onClick={() => window.open(out.pullRequest.url, '_blank')}
+                                                        sx={{
+                                                            borderRadius: 3,
+                                                            fontWeight: 600,
+                                                            textTransform: 'none',
+                                                            borderColor: 'divider',
+                                                            color: 'text.primary'
+                                                        }}
+                                                    >
+                                                        View on GitHub
+                                                    </Button>
 
-                                                <Button
-                                                    variant="contained"
-                                                    color="primary"
-                                                    fullWidth
-                                                    size="large"
-                                                    disabled={merging || mergeSuccess}
-                                                    startIcon={merging ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
-                                                    onClick={() => handleMerge(out.pullRequest.url)}
-                                                    sx={{
-                                                        borderRadius: 3,
-                                                        fontWeight: 700,
-                                                        textTransform: 'none',
-                                                        fontSize: '1rem',
-                                                        py: 1.5,
-                                                        bgcolor: mergeSuccess ? 'success.main' : 'primary.main',
-                                                        '&:hover': {
-                                                            bgcolor: mergeSuccess ? 'success.dark' : 'primary.dark',
-                                                        }
-                                                    }}
-                                                >
-                                                    {mergeSuccess ? 'Merged!' : 'Merge Now'}
-                                                </Button>
-                                            </Stack>
+                                                    <Button
+                                                        variant="contained"
+                                                        color="success"
+                                                        fullWidth
+                                                        size="large"
+                                                        disabled={merging || mergeSuccess}
+                                                        startIcon={merging ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                                                        onClick={() => handleMerge(out.pullRequest.url)}
+                                                        sx={{
+                                                            borderRadius: 3,
+                                                            fontWeight: 600,
+                                                            textTransform: 'none',
+                                                            boxShadow: 'none',
+                                                            '&:hover': { boxShadow: 'none' }
+                                                        }}
+                                                    >
+                                                        {mergeSuccess ? 'Merged!' : 'Merge Now'}
+                                                    </Button>
+                                                </Stack>
 
-                                            {mergeError && (
-                                                <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
-                                                    {mergeError}
-                                                </Alert>
-                                            )}
-                                        </Box>
-                                    ) : (
-                                        <Typography key={i} variant="body2">Work completed: {out.title || 'Artifact generated'}</Typography>
-                                    )
-                                ))}
+                                                {mergeError && (
+                                                    <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+                                                        {mergeError}
+                                                    </Alert>
+                                                )}
+                                            </Box>
+                                        );
+                                    } else {
+                                        return (
+                                            <Typography key={i} variant="body2" sx={{ color: 'text.secondary' }}>
+                                                Work completed: {out.title || 'Artifact generated'}
+                                            </Typography>
+                                        );
+                                    }
+                                })}
 
                                 <Snackbar
                                     open={mergeSuccess}
@@ -427,17 +441,17 @@ export const SessionDetailView = () => {
                                 </Snackbar>
 
                                 {!session.outputs.some((o: any) => o.pullRequest) && (
-                                    <Box sx={{ mt: 1, pt: 2, borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-                                        <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+                                    <Box sx={{ mt: 1, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+                                        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
                                             No pull request was created automatically.
                                         </Typography>
                                         <Button
-                                            variant="contained"
+                                            variant="outlined"
                                             color="primary"
                                             onClick={handleRequestPR}
                                             disabled={sending}
                                             startIcon={sending ? <CircularProgress size={20} color="inherit" /> : <OpenInNewIcon />}
-                                            sx={{ borderRadius: 3 }}
+                                            sx={{ borderRadius: 3, fontWeight: 600, textTransform: 'none' }}
                                         >
                                             Request GitHub PR from Jules
                                         </Button>
