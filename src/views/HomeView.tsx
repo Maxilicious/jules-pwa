@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Typography, CircularProgress, Box, Card, CardContent, Chip, Fab, Stack, LinearProgress } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { listSessions, listSessionActivities, approvePlan, mergePullRequest } from '../api/client';
@@ -19,7 +19,6 @@ export const HomeView = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
-    const notifiedSessionsRef = useRef<Set<string>>(new Set());
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [authOpen, setAuthOpen] = useState(false);
     const [user, setUser] = useState<any>(null);
@@ -60,15 +59,12 @@ export const HomeView = () => {
             sessionsWithActivities.forEach((s: any) => {
                 const isCompleted = s.outputs?.length > 0;
                 const needsApproval = s.requirePlanApproval && s.activities?.some((a: any) => a.planGenerated);
+                const timestamp = s.updatedAt || s.createdAt;
 
-                if (!notifiedSessionsRef.current.has(s.id)) {
-                    if (isCompleted) {
-                        notify('Pull Request Ready!', `Jules finished the task: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`);
-                        notifiedSessionsRef.current.add(s.id);
-                    } else if (needsApproval) {
-                        notify('Plan Awaiting Approval', `Jules needs your input for session: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`);
-                        notifiedSessionsRef.current.add(s.id);
-                    }
+                if (isCompleted) {
+                    notify('Pull Request Ready!', `Jules finished the task: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`, `complete_${s.id}`, timestamp);
+                } else if (needsApproval) {
+                    notify('Plan Awaiting Approval', `Jules needs your input for session: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`, `approval_${s.id}`, timestamp);
                 }
             });
         } catch (err: unknown) {

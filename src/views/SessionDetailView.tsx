@@ -29,8 +29,6 @@ export const SessionDetailView = () => {
 
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const notifiedNeedsApproval = useRef(false);
-    const notifiedComplete = useRef(false);
     const isCompletedRef = useRef(false);
     const sessionRef = useRef<Record<string, any> | null>(null);
 
@@ -63,18 +61,15 @@ export const SessionDetailView = () => {
             const acts = activitiesRes.activities || [];
 
             const needsApprovalNow = sessionRes.requirePlanApproval && sessionRes.outputs?.length === 0 && acts.some((a: any) => a.planGenerated);
+            const timestamp = sessionRes.updatedAt || sessionRes.createdAt;
 
-            if (needsApprovalNow && !notifiedNeedsApproval.current) {
-                notify('Jules Plan Ready', `Session "${sessionRes.title}" requires your approval.`, window.location.href);
-                notifiedNeedsApproval.current = true;
+            if (needsApprovalNow) {
+                notify('Jules Plan Ready', `Session "${sessionRes.title}" requires your approval.`, window.location.href, `approval_${id}`, timestamp);
             }
 
             if (sessionRes.outputs && sessionRes.outputs.length > 0) {
                 isCompletedRef.current = true;
-                if (!notifiedComplete.current) {
-                    notify('Jules Session Complete', `Session "${sessionRes.title}" is finished!`, window.location.href);
-                    notifiedComplete.current = true;
-                }
+                notify('Jules Session Complete', `Session "${sessionRes.title}" is finished!`, window.location.href, `complete_${id}`, timestamp);
             }
 
             setActivities(acts);

@@ -7,7 +7,35 @@ export const useNotifications = () => {
         }
     }, []);
 
-    const notify = (title: string, body: string, url?: string) => {
+    const hasNotified = (key: string) => {
+        const notified = JSON.parse(localStorage.getItem('jules_notified_events') || '[]');
+        return notified.includes(key);
+    };
+
+    const markNotified = (key: string) => {
+        const notified = JSON.parse(localStorage.getItem('jules_notified_events') || '[]');
+        if (!notified.includes(key)) {
+            notified.push(key);
+            while (notified.length > 500) notified.shift();
+            localStorage.setItem('jules_notified_events', JSON.stringify(notified));
+        }
+    };
+
+    const notify = (title: string, body: string, url?: string, dedupeKey?: string, timestampStr?: string) => {
+        // Feature: Ignore notifications for events older than today
+        if (timestampStr) {
+            const eventTime = new Date(timestampStr).getTime();
+            const startOfToday = new Date().setHours(0, 0, 0, 0);
+            if (eventTime < startOfToday) {
+                return; // Silently ignore old events
+            }
+        }
+
+        if (dedupeKey) {
+            if (hasNotified(dedupeKey)) return;
+            markNotified(dedupeKey);
+        }
+
         if ('Notification' in window && Notification.permission === 'granted') {
             // Using service worker showNotification is more reliable for PWAs,
             // especially on mobile/Android browsers which may throw "illegal constructor"
@@ -41,5 +69,5 @@ export const useNotifications = () => {
         }
     };
 
-    return { notify };
+    return { notify, hasNotified, markNotified };
 };
