@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Typography, CircularProgress, Box, Card, CardContent, Chip, Fab, Stack } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { listSessions } from '../api/client';
+import { listSessions, listSessionActivities } from '../api/client';
 import { useNavigate } from 'react-router-dom';
 
 export const HomeView = () => {
@@ -10,20 +10,39 @@ export const HomeView = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchSessions = async () => {
-            try {
-                const res = await listSessions();
-                setSessions(res.sessions || []);
-            } catch (err: unknown) {
-                if (err instanceof Error) {
-                    setError(err.message);
-                }
-            } finally {
-                setLoading(false);
+    const fetchSessions = async () => {
+        try {
+            const res = await listSessions(20);
+
+            // Fetch activities for pending/needs approval sessions to show richer status
+            const sessionsWithActivities = await Promise.all(
+                (res.sessions || []).map(async (s: any) => {
+                    const isCompleted = s.outputs?.length > 0;
+                    if (isCompleted) return s;
+
+                    try {
+                        const actsRes = await listSessionActivities(s.id);
+                        return { ...s, activities: actsRes.activities || [] };
+                    } catch (e) {
+                        return s;
+                    }
+                })
+            );
+
+            setSessions(sessionsWithActivities);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
             }
-        };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchSessions();
+        const interval = setInterval(fetchSessions, 10000); // refresh dashboard every 10s
+        return () => clearInterval(interval);
     }, []);
 
     return (
@@ -62,15 +81,25 @@ export const HomeView = () => {
                                             {session.title || 'Untitled Session'}
                                         </Typography>
                                         <Chip
-                                            label={isCompleted ? 'Done' : 'In Progress'}
-                                            color={isCompleted ? 'success' : 'primary'}
+                                            label={isCompleted ? 'Done' : session.requirePlanApproval && session.activities?.some((a: any) => a.planGenerated) ? 'Needs Approval' : 'In Progress'}
+                                            color={isCompleted ? 'success' : session.requirePlanApproval && session.activities?.some((a: any) => a.planGenerated) ? 'warning' : 'primary'}
                                             size="small"
                                             variant={isCompleted ? 'filled' : 'outlined'}
                                         />
                                     </Box>
-                                    <Typography variant="body2" color="text.secondary" noWrap>
+                                    <Typography variant="body2" color="text.secondary" noWrap sx={{ mb: 1 }}>
                                         {session.prompt}
                                     </Typography>
+
+                                    {!isCompleted && session.activities && session.activities.length > 0 && (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, p: 1, bgcolor: 'background.default', borderRadius: 1 }}>
+                                            <CircularProgress size={12} />
+                                            <Typography variant="caption" color="text.secondary" noWrap>
+                                                {session.activities[session.activities.length - 1].progressUpdated?.title ||
+                                                    (session.activities[session.activities.length - 1].planGenerated ? 'Waiting for Plan Approval' : 'Working...')}
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </CardContent>
                             </Card>
                         );

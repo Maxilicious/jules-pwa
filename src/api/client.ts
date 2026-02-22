@@ -1,7 +1,7 @@
 export const API_BASE = 'https://jules.googleapis.com/v1alpha';
 
 export const getApiKey = () => {
-    return localStorage.getItem('jules_api_key') || '';
+    return localStorage.getItem('jules_api_key') || import.meta.env.VITE_JULES_API_KEY || '';
 };
 
 export const setApiKey = (key: string) => {
@@ -73,4 +73,8 @@ export const approvePlan = async (sessionId: string) => {
     return fetchJules(`/sessions/${sessionId}:approvePlan`, {
         method: 'POST',
     });
+};
+
+export const listSessionActivities = async (sessionId: string) => {
+    return fetchJules(`/sessions/${sessionId}/activities`);
 };

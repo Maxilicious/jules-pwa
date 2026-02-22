@@ -4,21 +4,42 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getSession, approvePlan } from '../api/client';
+import { getSession, approvePlan, listSessionActivities } from '../api/client';
+import { useNotifications } from '../hooks/useNotifications';
 
 export const SessionDetailView = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { notify } = useNotifications();
     const [session, setSession] = useState<Record<string, any> | null>(null);
+    const [activities, setActivities] = useState<Record<string, any>[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [approving, setApproving] = useState(false);
 
-    const fetchSession = async () => {
+    const fetchSessionData = async () => {
         if (!id) return;
         try {
-            const res = await getSession(id);
-            setSession(res);
+            const [sessionRes, activitiesRes] = await Promise.all([
+                getSession(id),
+                listSessionActivities(id).catch(() => ({ activities: [] }))
+            ]);
+            setSession(sessionRes);
+            const acts = activitiesRes.activities || [];
+
+            // Check if we just transitioned to "needs approval" to fire notification
+            const needsApprovalNow = sessionRes.requirePlanApproval && sessionRes.outputs?.length === 0 && acts.some((a: any) => a.planGenerated);
+
+            // If we didn't previously need approval, but now do, fire notification.
+            if (needsApprovalNow && !activities.some((a: any) => a.planGenerated)) {
+                notify('Jules Plan Ready', `Session "${sessionRes.title}" requires your approval.`, window.location.href);
+            }
+
+            if (sessionRes.outputs && sessionRes.outputs.length > 0 && Array.isArray(session?.outputs) && session!.outputs.length === 0) {
+                notify('Jules Session Complete', `Session "${sessionRes.title}" is finished!`, window.location.href);
+            }
+
+            setActivities(acts);
         } catch (err: unknown) {
             if (err instanceof Error) {
                 setError(err.message);
@@ -29,11 +50,11 @@ export const SessionDetailView = () => {
     };
 
     useEffect(() => {
-        fetchSession();
-        // Simple polling every 5s if not completed and we are on this view
+        fetchSessionData();
+        // Polling every 5s if not completed and we are on this view
         const interval = setInterval(() => {
-            if (session && session.outputs?.length === 0) {
-                fetchSession();
+            if (session && (!session.outputs || session.outputs.length === 0)) {
+                fetchSessionData();
             }
         }, 5000);
         return () => clearInterval(interval);
@@ -44,7 +65,7 @@ export const SessionDetailView = () => {
         setApproving(true);
         try {
             await approvePlan(id);
-            await fetchSession();
+            await fetchSessionData();
         } catch (err: unknown) {
             if (err instanceof Error) {
                 alert(`Approval failed: ${err.message}`);
@@ -110,6 +131,24 @@ export const SessionDetailView = () => {
                         >
                             Approve Plan
                         </Button>
+                    </Box>
+                )}
+
+                {!hasOutputs && activities.length > 0 && (
+                    <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Recent Activity
+                        </Typography>
+                        <Stack spacing={1}>
+                            {activities.slice(-3).map((act, i) => (
+                                <Box key={act.id || i} sx={{ display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'background.paper', p: 1.5, borderRadius: 2 }}>
+                                    <CircularProgress size={16} />
+                                    <Typography variant="body2">
+                                        {act.progressUpdated?.title || act.planGenerated ? 'Generated Execution Plan' : 'Working...'}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Stack>
                     </Box>
                 )}
 
