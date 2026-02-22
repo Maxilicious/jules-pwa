@@ -1,19 +1,31 @@
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, CircularProgress, Box } from '@mui/material';
 import { theme } from './theme/md3';
-import { useAuth } from './api/useAuth';
-import { AuthDialog } from './components/AuthDialog';
 import { MainLayout } from './layouts/MainLayout';
 import { HomeView } from './views/HomeView';
 import { CreateSessionView } from './views/CreateSessionView';
 import { SessionDetailView } from './views/SessionDetailView';
+import { LoginView } from './views/LoginView';
 import { useNotifications } from './hooks/useNotifications';
+import { auth, onAuthStateChanged } from './firebase';
+
+const AUTHORIZED_EMAIL = 'wijnbladh.max@gmail.com';
 
 function App() {
-  const { apiKey, isReady, saveKey } = useAuth();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   useNotifications(); // Requests permission implicitly on mount
 
-  if (!isReady) {
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser: any) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100dvh' }}>
         <CircularProgress />
@@ -21,12 +33,15 @@ function App() {
     );
   }
 
+  const isAuthorized = user && user.email === AUTHORIZED_EMAIL;
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AuthDialog open={!apiKey} onSave={saveKey} />
 
-      {apiKey && (
+      {!isAuthorized ? (
+        <LoginView />
+      ) : (
         <BrowserRouter>
           <MainLayout>
             <Routes>

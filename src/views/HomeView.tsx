@@ -4,26 +4,18 @@ import AddIcon from '@mui/icons-material/Add';
 import { listSessions, listSessionActivities, approvePlan, mergePullRequest } from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import SettingsIcon from '@mui/icons-material/Settings';
-import { IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Container, Divider } from '@mui/material';
+import { IconButton, Tooltip, Container, Button } from '@mui/material';
 import { useNotifications } from '../hooks/useNotifications';
-import { setApiKey, hasApiKey, getGitHubPat, setGitHubPat } from '../api/client';
-import { auth, googleProvider, signInWithPopup, onAuthStateChanged } from '../firebase';
-import { syncSettings } from '../api/sync';
-import CloudDoneIcon from '@mui/icons-material/CloudDone';
-import CloudOffIcon from '@mui/icons-material/CloudOff';
-import GoogleIcon from '@mui/icons-material/Google';
+import { getGitHubPat } from '../api/client';
+import { auth, onAuthStateChanged, signOut } from '../firebase';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 export const HomeView = () => {
     const [sessions, setSessions] = useState<Record<string, any>[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
-    const [settingsOpen, setSettingsOpen] = useState(false);
-    const [authOpen, setAuthOpen] = useState(false);
     const [user, setUser] = useState<any>(null);
-    const [tempApiKey, setTempApiKey] = useState('');
-    const [tempPat, setTempPat] = useState(getGitHubPat());
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const navigate = useNavigate();
     const { notify } = useNotifications();
@@ -80,42 +72,15 @@ export const HomeView = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (u: any) => {
             setUser(u);
-            if (u) {
-                await syncSettings(u);
-                if (hasApiKey()) setAuthOpen(false);
-            } else if (!hasApiKey()) {
-                setAuthOpen(true);
-            }
         });
         return () => unsubscribe();
     }, []);
 
-    const handleLogin = async () => {
+    const handleLogout = async () => {
         try {
-            await signInWithPopup(auth, googleProvider);
+            await signOut(auth);
         } catch (err: unknown) {
-            if (err instanceof Error) alert(`Login failed: ${err.message}`);
-        }
-    };
-
-    const handleSaveSettings = () => {
-        setGitHubPat(tempPat);
-        setSettingsOpen(false);
-    };
-
-    const handleSaveAuth = () => {
-        if (tempApiKey.trim()) {
-            setApiKey(tempApiKey.trim());
-            setAuthOpen(false);
-            fetchSessions(true);
-        }
-    };
-
-    const handleClearCredentials = () => {
-        if (confirm('Clear all stored API keys and GitHub tokens?')) {
-            localStorage.removeItem('jules_api_key');
-            localStorage.removeItem('github_pat');
-            window.location.reload();
+            console.error('Logout failed', err);
         }
     };
 
@@ -141,9 +106,7 @@ export const HomeView = () => {
         const pat = getGitHubPat();
 
         if (!pat) {
-            setTempPat('');
-            setSettingsOpen(true);
-            return;
+            return alert('GitHub PAT not found in .env.local');
         }
 
         setActionLoading(`merge-${sessionId}`);
@@ -167,31 +130,27 @@ export const HomeView = () => {
         <Container maxWidth="md" disableGutters>
             <Box sx={{ pb: 8, px: { xs: 2, sm: 3 }, pt: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                        My Sessions
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box
+                            component="img"
+                            src="/pwa-192x192.png"
+                            alt="Jules Logo"
+                            sx={{ width: 32, height: 32, mr: 1, borderRadius: 1 }}
+                        />
+                        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                            Sessions
+                        </Typography>
+                    </Box>
                     <Stack direction="row" spacing={1}>
-                        <Tooltip title={settingsOpen ? "Close Settings" : "Open Settings"}>
+                        <Tooltip title={`Logged in as ${user?.email || 'User'}`}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {user && (
-                                    <Tooltip title={`Synced as ${user.email}`}>
-                                        <CloudDoneIcon color="success" fontSize="small" />
-                                    </Tooltip>
-                                )}
-                                {!user && hasApiKey() && (
-                                    <Tooltip title="Not synced to cloud">
-                                        <CloudOffIcon color="disabled" fontSize="small" />
-                                    </Tooltip>
-                                )}
                                 <IconButton
                                     color="inherit"
-                                    onClick={() => {
-                                        setTempPat(getGitHubPat());
-                                        setSettingsOpen(true);
-                                    }}
+                                    onClick={handleLogout}
                                     sx={{ bgcolor: 'background.paper', boxShadow: 1 }}
+                                    aria-label="logout"
                                 >
-                                    <SettingsIcon />
+                                    <LogoutIcon />
                                 </IconButton>
                             </Box>
                         </Tooltip>
@@ -222,91 +181,7 @@ export const HomeView = () => {
                     </Box>
                 )}
 
-                {/* Settings Dialog */}
-                <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} fullWidth maxWidth="xs">
-                    <DialogTitle>Settings</DialogTitle>
-                    <DialogContent>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Provide a GitHub Personal Access Token (PAT) with <b>repo</b> scope to enable direct PR merging from the app.
-                        </Typography>
-                        <TextField
-                            fullWidth
-                            label="GitHub PAT"
-                            type="password"
-                            value={tempPat}
-                            onChange={(e) => setTempPat(e.target.value)}
-                            placeholder="ghp_..."
-                            variant="outlined"
-                        />
-                        <Box sx={{ mt: 3, mb: 1 }}>
-                            <Typography variant="subtitle2" gutterBottom>Cloud Sync</Typography>
-                            {!user ? (
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    startIcon={<GoogleIcon />}
-                                    onClick={handleLogin}
-                                >
-                                    Sign in with Google to Sync
-                                </Button>
-                            ) : (
-                                <Typography variant="body2" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <CloudDoneIcon fontSize="small" /> Synced to {user.email}
-                                </Typography>
-                            )}
-                        </Box>
-                        <Button
-                            color="error"
-                            variant="text"
-                            onClick={handleClearCredentials}
-                            sx={{ mt: 2 }}
-                            fullWidth
-                        >
-                            Clear All Credentials
-                        </Button>
-                    </DialogContent>
-                    <DialogActions sx={{ px: 3, pb: 2 }}>
-                        <Button onClick={() => setSettingsOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveSettings} variant="contained" color="primary">Save</Button>
-                    </DialogActions>
-                </Dialog>
 
-                {/* API Key Setup Dialog */}
-                <Dialog open={authOpen} onClose={() => { if (hasApiKey()) setAuthOpen(false); }} fullWidth maxWidth="xs">
-                    <DialogTitle>Setup Jules API Key</DialogTitle>
-                    <DialogContent>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Your Jules API Key is needed to manage sessions. You can store it locally or sync it across devices via Google.
-                        </Typography>
-                        <TextField
-                            fullWidth
-                            label="Jules API Key"
-                            type="password"
-                            value={tempApiKey}
-                            onChange={(e) => setTempApiKey(e.target.value)}
-                            placeholder="AQ..."
-                            variant="outlined"
-                            autoFocus
-                        />
-                        <Divider sx={{ my: 3 }} />
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, textAlign: 'center' }}>
-                            OR
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            fullWidth
-                            startIcon={<GoogleIcon />}
-                            onClick={handleLogin}
-                        >
-                            Sign in with Google to Restore
-                        </Button>
-                    </DialogContent>
-                    <DialogActions sx={{ px: 3, pb: 2 }}>
-                        <Button onClick={handleSaveAuth} variant="contained" color="primary" disabled={!tempApiKey.trim()}>
-                            Save and Continue
-                        </Button>
-                    </DialogActions>
-                </Dialog>
 
                 {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
