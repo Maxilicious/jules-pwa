@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
-import { Typography, Box, CircularProgress, Button, Stack, Chip, IconButton, LinearProgress, Container, TextField, InputAdornment, Alert, Snackbar } from '@mui/material';
+import { Typography, Box, CircularProgress, Button, Stack, Chip, IconButton, LinearProgress, Container, TextField, InputAdornment, Alert, Snackbar, Divider } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SendIcon from '@mui/icons-material/Send';
 import { useParams, useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import { getSession, approvePlan, listSessionActivities, sendMessage, mergePullRequest, getGitHubPat } from '../api/client';
 import { useNotifications } from '../hooks/useNotifications';
 
@@ -182,12 +183,13 @@ export const SessionDetailView = () => {
 
     return (
         <Container maxWidth="md" disableGutters>
-            <Box sx={{ pb: 8, px: { xs: 2, sm: 3 }, pt: 3 }}>
+            <Box sx={{ pb: 10, px: { xs: 2, sm: 3 }, pt: 3 }}>
+                {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                    <IconButton onClick={() => navigate('/')} sx={{ mr: 1, ml: -1 }}>
+                    <IconButton onClick={() => navigate('/')} sx={{ mr: 1, ml: -1 }} size="small">
                         <ArrowBackIcon />
                     </IconButton>
-                    <Typography variant="h5" sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexGrow: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexGrow: 1, fontSize: '1.25rem' }}>
                         {session.title || 'Session Details'}
                     </Typography>
                 </Box>
@@ -196,7 +198,7 @@ export const SessionDetailView = () => {
                     <Box sx={{ width: '100%', position: 'absolute', top: 60, left: 0, zIndex: 1100 }}>
                         <LinearProgress
                             sx={{
-                                height: 4,
+                                height: 3,
                                 bgcolor: 'rgba(103, 80, 164, 0.1)',
                                 '& .MuiLinearProgress-bar': {
                                     bgcolor: '#6750A4',
@@ -207,70 +209,227 @@ export const SessionDetailView = () => {
                     </Box>
                 )}
 
-                <Stack spacing={3}>
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Status
-                        </Typography>
-                        <Chip
-                            label={hasOutputs ? 'Completed' : needsApproval ? 'Needs Approval' : 'In Progress'}
-                            color={hasOutputs ? 'success' : needsApproval ? 'warning' : 'primary'}
-                            variant={hasOutputs ? 'filled' : 'outlined'}
-                        />
-                    </Box>
-
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Prompt
-                        </Typography>
-                        <Box sx={{ position: 'relative', bgcolor: 'background.paper', borderRadius: 2, p: 2 }}>
-                            <Typography variant="body1" sx={{
-                                whiteSpace: 'pre-wrap',
-                                overflowWrap: 'anywhere',
-                                wordBreak: 'break-word',
-                                display: '-webkit-box',
-                                WebkitLineClamp: isPromptExpanded ? 'unset' : 3,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden'
-                            }}>
-                                {session.prompt}
+                <Stack spacing={2.5}>
+                    {/* Overview Card */}
+                    <Box sx={{
+                        bgcolor: 'background.paper',
+                        borderRadius: 3,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        p: 2.5,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                    }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5, lineHeight: 1 }}>
+                                Overview
                             </Typography>
-                            {session.prompt && session.prompt.length > 250 && (
-                                <Button
-                                    size="small"
-                                    onClick={() => setIsPromptExpanded(!isPromptExpanded)}
-                                    sx={{ mt: 1, textTransform: 'none' }}
-                                >
-                                    {isPromptExpanded ? 'Show less' : 'Show more'}
-                                </Button>
-                            )}
+                            <Chip
+                                label={hasOutputs ? 'Completed' : needsApproval ? 'Needs Approval' : 'In Progress'}
+                                color={hasOutputs ? 'success' : needsApproval ? 'warning' : 'primary'}
+                                variant={hasOutputs ? 'filled' : 'outlined'}
+                                size="small"
+                                sx={{ fontWeight: 600, height: 24, fontSize: '0.75rem' }}
+                            />
                         </Box>
+
+                        <Typography variant="body2" sx={{
+                            whiteSpace: 'pre-wrap',
+                            color: 'text.secondary',
+                            lineHeight: 1.5,
+                            overflowWrap: 'anywhere',
+                            wordBreak: 'break-word',
+                            display: '-webkit-box',
+                            WebkitLineClamp: isPromptExpanded ? 'unset' : 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                        }}>
+                            {session.prompt}
+                        </Typography>
+                        {session.prompt && session.prompt.length > 250 && (
+                            <Button
+                                size="small"
+                                variant="text"
+                                onClick={() => setIsPromptExpanded(!isPromptExpanded)}
+                                sx={{ mt: 1.5, p: 0, minWidth: 'auto', textTransform: 'none', fontSize: '0.8rem', fontWeight: 600 }}
+                            >
+                                {isPromptExpanded ? 'Show less' : 'Show more'}
+                            </Button>
+                        )}
                     </Box>
 
+                    {/* Needs Approval Card */}
                     {needsApproval && (
-                        <Box sx={{ bgcolor: 'background.paper', p: 3, borderRadius: 3, textAlign: 'center' }}>
-                            <Typography variant="h6" gutterBottom>Plan Needs Approval</Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                Jules has created a plan and requires your explicit approval to proceed.
-                            </Typography>
+                        <Box sx={{
+                            bgcolor: 'warning.light',
+                            color: 'warning.contrastText',
+                            p: 2.5,
+                            borderRadius: 3,
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            justifyContent: 'space-between',
+                            gap: 2,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                        }}>
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>Plan Needs Approval</Typography>
+                                <Typography variant="caption" sx={{ opacity: 0.9, display: 'block' }}>
+                                    Jules has created a plan and requires your explicit approval to proceed.
+                                </Typography>
+                            </Box>
                             <Button
                                 variant="contained"
-                                color="primary"
+                                color="warning"
+                                size="small"
                                 onClick={handleApprove}
                                 disabled={approving}
-                                startIcon={approving ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                                startIcon={approving ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon fontSize="small" />}
+                                sx={{ whiteSpace: 'nowrap', boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}
                             >
                                 Approve Plan
                             </Button>
                         </Box>
                     )}
 
+                    {/* Outputs / Ready to Merge Card */}
+                    {hasOutputs && (
+                        <Box sx={{
+                            bgcolor: 'background.paper',
+                            p: 2.5,
+                            borderRadius: 3,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderLeft: '4px solid',
+                            borderLeftColor: 'success.main',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                        }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                <CheckCircleIcon color="success" fontSize="small" />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>Ready to Merge</Typography>
+                            </Box>
+
+                            <Stack spacing={2.5}>
+                                {session.outputs.map((out: Record<string, any>, i: number) => {
+                                    if (out.pullRequest) {
+                                        return (
+                                            <Box key={i} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5, lineHeight: 1.3 }}>
+                                                    {out.pullRequest.title}
+                                                </Typography>
+                                                <Box sx={{
+                                                    color: 'text.secondary',
+                                                    fontSize: '0.85rem',
+                                                    lineHeight: 1.6,
+                                                    '& p': { mb: 1.5, mt: 0 },
+                                                    '& ul, & ol': { pl: 2.5, mt: 0.5, mb: 1.5, '& li': { mb: 0.5 } },
+                                                    '& strong': { color: 'text.primary', fontWeight: 600 },
+                                                    '& code': { bgcolor: 'action.hover', px: 0.6, py: 0.2, borderRadius: 1, fontSize: '0.75rem', fontFamily: 'monospace' },
+                                                    '& hr': { my: 2, borderColor: 'divider', borderStyle: 'dashed' },
+                                                    '& h1, & h2, & h3, & h4, & h5, & h6': { color: 'text.primary', fontWeight: 600, mt: 2.5, mb: 1 },
+                                                    '& h1': { fontSize: '1.2rem', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 },
+                                                    '& h2': { fontSize: '1.1rem', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 },
+                                                    '& h3': { fontSize: '1rem' },
+                                                }}>
+                                                    <ReactMarkdown>{out.pullRequest.description || ''}</ReactMarkdown>
+                                                </Box>
+
+                                                <Divider sx={{ my: 0.5, borderColor: 'divider', borderStyle: 'dashed' }} />
+
+                                                <Stack direction="row" spacing={1.5} sx={{ mt: 1 }}>
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="inherit"
+                                                        size="small"
+                                                        startIcon={<OpenInNewIcon fontSize="small" />}
+                                                        onClick={() => window.open(out.pullRequest.url, '_blank')}
+                                                        sx={{
+                                                            borderRadius: 2,
+                                                            fontWeight: 600,
+                                                            textTransform: 'none',
+                                                            borderColor: 'divider',
+                                                            color: 'text.secondary',
+                                                            flex: 1
+                                                        }}
+                                                    >
+                                                        Review PR
+                                                    </Button>
+
+                                                    <Button
+                                                        variant="contained"
+                                                        color="success"
+                                                        size="small"
+                                                        disabled={merging || mergeSuccess}
+                                                        startIcon={merging ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon fontSize="small" />}
+                                                        onClick={() => handleMerge(out.pullRequest.url)}
+                                                        sx={{
+                                                            borderRadius: 2,
+                                                            fontWeight: 600,
+                                                            textTransform: 'none',
+                                                            boxShadow: 'none',
+                                                            flex: 1,
+                                                            '&:hover': { boxShadow: 'none' }
+                                                        }}
+                                                    >
+                                                        {mergeSuccess ? 'Merged!' : 'Merge'}
+                                                    </Button>
+                                                </Stack>
+
+                                                {mergeError && (
+                                                    <Alert severity="error" icon={false} sx={{ mt: 1.5, py: 0, px: 1.5, borderRadius: 2, '& .MuiAlert-message': { fontSize: '0.75rem', p: 1 } }}>
+                                                        {mergeError}
+                                                    </Alert>
+                                                )}
+                                            </Box>
+                                        );
+                                    } else {
+                                        return (
+                                            <Typography key={i} variant="caption" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Box component="span" sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: 'text.disabled' }} />
+                                                Work completed: {out.title || 'Artifact generated'}
+                                            </Typography>
+                                        );
+                                    }
+                                })}
+
+                                <Snackbar
+                                    open={mergeSuccess}
+                                    autoHideDuration={6000}
+                                    onClose={() => setMergeSuccess(false)}
+                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                                >
+                                    <Alert onClose={() => setMergeSuccess(false)} severity="success" sx={{ width: '100%', borderRadius: 2, fontSize: '0.85rem' }}>
+                                        Pull request successfully merged!
+                                    </Alert>
+                                </Snackbar>
+
+                                {!session.outputs.some((o: any) => o.pullRequest) && (
+                                    <Box sx={{ mt: 1, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                        <Typography variant="caption" sx={{ mb: 1.5, display: 'block', color: 'text.secondary' }}>
+                                            No pull request was created automatically.
+                                        </Typography>
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            onClick={handleRequestPR}
+                                            disabled={sending}
+                                            startIcon={sending ? <CircularProgress size={16} color="inherit" /> : <OpenInNewIcon fontSize="small" />}
+                                            sx={{ borderRadius: 2, fontWeight: 600, textTransform: 'none', color: 'text.secondary', borderColor: 'divider' }}
+                                        >
+                                            Request PR
+                                        </Button>
+                                    </Box>
+                                )}
+                            </Stack>
+                        </Box>
+                    )}
+
+                    {/* Activity Section */}
                     {!hasOutputs && (
-                        <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                                Conversation & Activity
+                        <Box sx={{ flexGrow: 1, minHeight: 0, mt: 1 }}>
+                            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5, mb: 1.5, display: 'block' }}>
+                                Activity Log
                             </Typography>
-                            <Stack spacing={2} sx={{ mb: 10 }}>
+                            <Stack spacing={1.5} sx={{ mb: 12 }}>
                                 {activities.reduce((acc: any[], act, i) => {
                                     const isUser = act.originator === 'user';
                                     const isAgentMsg = !!act.agentMessage;
@@ -308,18 +467,19 @@ export const SessionDetailView = () => {
                                             }}>
                                                 <Box sx={{
                                                     maxWidth: '85%',
-                                                    bgcolor: item.isUser ? 'primary.main' : (item.planGenerated ? 'warning.main' : 'background.paper'),
-                                                    color: item.isUser ? 'primary.contrastText' : (item.planGenerated ? 'warning.contrastText' : 'text.primary'),
-                                                    p: 2,
+                                                    bgcolor: item.isUser ? 'primary.main' : (item.planGenerated ? 'warning.50' : 'background.paper'),
+                                                    color: item.isUser ? 'primary.contrastText' : (item.planGenerated ? 'warning.dark' : 'text.primary'),
+                                                    px: 2,
+                                                    py: 1.5,
                                                     borderRadius: item.isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                                                    boxShadow: 1,
+                                                    border: '1px solid',
+                                                    borderColor: item.isUser ? 'primary.main' : (item.planGenerated ? 'warning.300' : 'divider'),
+                                                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                                                     overflowWrap: 'anywhere',
                                                     wordBreak: 'break-word',
                                                     whiteSpace: 'pre-wrap',
-                                                    border: item.planGenerated ? '2px solid' : 'none',
-                                                    borderColor: 'warning.light'
                                                 }}>
-                                                    <Typography variant="body2" sx={{ fontWeight: (item.planGenerated || item.planApproved) ? 600 : 400 }}>
+                                                    <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: (item.planGenerated || item.planApproved) ? 500 : 400, lineHeight: 1.5 }}>
                                                         {item.text}
                                                     </Typography>
                                                 </Box>
@@ -330,128 +490,15 @@ export const SessionDetailView = () => {
                                     const showSpinner = item.isLatest && !hasOutputs && !needsApproval;
 
                                     return (
-                                        <Box key={item.id || i} sx={{ display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'background.paper', p: 1.5, borderRadius: 2, opacity: 0.8 }}>
-                                            {showSpinner ? <CircularProgress size={16} /> : <Box sx={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: '1.2rem' }}>•</Box>}
-                                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                                        <Box key={item.id || i} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1, opacity: 0.7 }}>
+                                            {showSpinner ? <CircularProgress size={12} sx={{ color: 'text.secondary' }} /> : <Box sx={{ width: 12, height: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.disabled', fontSize: '0.85rem' }}>•</Box>}
+                                            <Typography variant="caption" sx={{ color: 'text.secondary', overflowWrap: 'anywhere', wordBreak: 'break-word', lineHeight: 1.3 }}>
                                                 {item.text}
                                             </Typography>
                                         </Box>
                                     );
                                 })}
                                 <div ref={messagesEndRef} />
-                            </Stack>
-                        </Box>
-                    )}
-
-                    {hasOutputs && (
-                        <Box sx={{
-                            bgcolor: 'background.paper',
-                            p: 3,
-                            borderRadius: 4,
-                            mb: 2,
-                            boxShadow: 2,
-                            borderTop: '6px solid',
-                            borderColor: 'success.main'
-                        }}>
-                            <Stack spacing={3}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'success.main' }}>
-                                    <CheckCircleIcon fontSize="medium" />
-                                    <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 700 }}>Ready to Merge</Typography>
-                                </Box>
-
-                                {session.outputs.map((out: Record<string, any>, i: number) => {
-                                    if (out.pullRequest) {
-                                        return (
-                                            <Box key={i} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                                    {out.pullRequest.title}
-                                                </Typography>
-                                                <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
-                                                    {out.pullRequest.description}
-                                                </Typography>
-
-                                                <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="inherit"
-                                                        fullWidth
-                                                        size="large"
-                                                        startIcon={<OpenInNewIcon />}
-                                                        onClick={() => window.open(out.pullRequest.url, '_blank')}
-                                                        sx={{
-                                                            borderRadius: 3,
-                                                            fontWeight: 600,
-                                                            textTransform: 'none',
-                                                            borderColor: 'divider',
-                                                            color: 'text.primary'
-                                                        }}
-                                                    >
-                                                        View on GitHub
-                                                    </Button>
-
-                                                    <Button
-                                                        variant="contained"
-                                                        color="success"
-                                                        fullWidth
-                                                        size="large"
-                                                        disabled={merging || mergeSuccess}
-                                                        startIcon={merging ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
-                                                        onClick={() => handleMerge(out.pullRequest.url)}
-                                                        sx={{
-                                                            borderRadius: 3,
-                                                            fontWeight: 600,
-                                                            textTransform: 'none',
-                                                            boxShadow: 'none',
-                                                            '&:hover': { boxShadow: 'none' }
-                                                        }}
-                                                    >
-                                                        {mergeSuccess ? 'Merged!' : 'Merge Now'}
-                                                    </Button>
-                                                </Stack>
-
-                                                {mergeError && (
-                                                    <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
-                                                        {mergeError}
-                                                    </Alert>
-                                                )}
-                                            </Box>
-                                        );
-                                    } else {
-                                        return (
-                                            <Typography key={i} variant="body2" sx={{ color: 'text.secondary' }}>
-                                                Work completed: {out.title || 'Artifact generated'}
-                                            </Typography>
-                                        );
-                                    }
-                                })}
-
-                                <Snackbar
-                                    open={mergeSuccess}
-                                    autoHideDuration={6000}
-                                    onClose={() => setMergeSuccess(false)}
-                                >
-                                    <Alert onClose={() => setMergeSuccess(false)} severity="success" sx={{ width: '100%' }}>
-                                        Pull request successfully merged!
-                                    </Alert>
-                                </Snackbar>
-
-                                {!session.outputs.some((o: any) => o.pullRequest) && (
-                                    <Box sx={{ mt: 1, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-                                        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-                                            No pull request was created automatically.
-                                        </Typography>
-                                        <Button
-                                            variant="outlined"
-                                            color="primary"
-                                            onClick={handleRequestPR}
-                                            disabled={sending}
-                                            startIcon={sending ? <CircularProgress size={20} color="inherit" /> : <OpenInNewIcon />}
-                                            sx={{ borderRadius: 3, fontWeight: 600, textTransform: 'none' }}
-                                        >
-                                            Request GitHub PR from Jules
-                                        </Button>
-                                    </Box>
-                                )}
                             </Stack>
                         </Box>
                     )}

@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { listSources, createSession } from '../api/client';
+import { generateTitle } from '../utils/gemini';
 
 export const CreateSessionView = () => {
     const [sources, setSources] = useState<Record<string, any>[]>([]);
@@ -44,7 +45,11 @@ export const CreateSessionView = () => {
         setError('');
 
         try {
-            const res = await createSession(selectedSource, prompt, title, requireApproval);
+            let finalTitle = title;
+            if (!finalTitle) {
+                finalTitle = await generateTitle(prompt);
+            }
+            const res = await createSession(selectedSource, prompt, finalTitle || prompt, requireApproval);
             navigate(`/session/${res.id}`);
         } catch (err: unknown) {
             if (err instanceof Error) {

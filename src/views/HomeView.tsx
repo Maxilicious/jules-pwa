@@ -131,12 +131,6 @@ export const HomeView = () => {
             <Box sx={{ pb: 8, px: { xs: 2, sm: 3 }, pt: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Box
-                            component="img"
-                            src="/pwa-192x192.png"
-                            alt="Jules Logo"
-                            sx={{ width: 32, height: 32, mr: 1, borderRadius: 1 }}
-                        />
                         <Typography variant="h4" sx={{ fontWeight: 600 }}>
                             Sessions
                         </Typography>
@@ -211,33 +205,28 @@ export const HomeView = () => {
                                         width: '100%'
                                     }}
                                 >
-                                    <CardContent sx={{ overflow: 'hidden' }}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1, overflow: 'hidden' }}>
-                                            <Typography variant="h6" sx={{ pr: 2, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {session.title || 'Untitled Session'}
+                                    <CardContent sx={{ pb: '16px !important' }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+                                            <Typography
+                                                variant="body2"
+                                                color="text.primary"
+                                                sx={{
+                                                    overflowWrap: 'anywhere',
+                                                    wordBreak: 'break-word',
+                                                    whiteSpace: 'pre-wrap',
+                                                    lineHeight: 1.5
+                                                }}
+                                            >
+                                                {session.prompt || session.title || 'Untitled Session'}
                                             </Typography>
                                             <Chip
                                                 label={isCompleted ? 'Done' : needsApproval ? 'Needs Approval' : 'In Progress'}
                                                 color={isCompleted ? 'success' : needsApproval ? 'warning' : 'primary'}
                                                 size="small"
                                                 variant={isCompleted ? 'filled' : 'outlined'}
+                                                sx={{ flexShrink: 0, height: 24, fontSize: '0.75rem', fontWeight: 600 }}
                                             />
                                         </Box>
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{
-                                                mb: 1,
-                                                overflowWrap: 'anywhere',
-                                                wordBreak: 'break-word',
-                                                display: '-webkit-box',
-                                                WebkitLineClamp: 1,
-                                                WebkitBoxOrient: 'vertical',
-                                                overflow: 'hidden'
-                                            }}
-                                        >
-                                            {session.prompt}
-                                        </Typography>
 
                                         {(needsApproval || prOutput) && !isCompleted && (
                                             <Box sx={{ mt: 2, display: 'flex', gap: 1 }} onClick={(e) => e.stopPropagation()}>
