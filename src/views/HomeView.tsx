@@ -214,10 +214,11 @@ export const HomeView = () => {
                                                     overflowWrap: 'anywhere',
                                                     wordBreak: 'break-word',
                                                     whiteSpace: 'pre-wrap',
-                                                    lineHeight: 1.5
+                                                    lineHeight: 1.5,
+                                                    fontWeight: 500
                                                 }}
                                             >
-                                                {session.prompt || session.title || 'Untitled Session'}
+                                                {session.title || session.prompt || 'Untitled Session'}
                                             </Typography>
                                             <Chip
                                                 label={isCompleted ? 'Done' : needsApproval ? 'Needs Approval' : 'In Progress'}
