@@ -43,6 +43,12 @@ export const getSession = async (sessionId: string) => {
     return fetchJules(`/sessions/${sessionId}`);
 };
 
+export const deleteSession = async (sessionId: string) => {
+    return fetchJules(`/sessions/${sessionId}`, {
+        method: 'DELETE',
+    });
+};
+
 export const createSession = async (
     source: string,
     prompt: string,
@@ -81,6 +87,24 @@ export const sendMessage = async (sessionId: string, prompt: string) => {
         method: 'POST',
         body: JSON.stringify({ prompt }),
     });
+};
+
+export const checkPullRequestMerged = async (owner: string, repo: string, pullNumber: number) => {
+    const pat = getGitHubPat();
+    if (!pat) return false;
+    try {
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}`, {
+            headers: {
+                "Authorization": `token ${pat}`,
+                "Accept": "application/vnd.github.v3+json",
+            }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return data.merged === true;
+        }
+    } catch (e) { }
+    return false;
 };
 
 export const mergePullRequest = async (owner: string, repo: string, pullNumber: number) => {

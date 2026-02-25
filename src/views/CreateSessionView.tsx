@@ -5,7 +5,8 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { listSources, createSession } from '../api/client';
-import { generateTitle } from '../utils/gemini';
+import { generateTitle, polishPrompt } from '../utils/gemini';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 
 export const CreateSessionView = () => {
     const [sources, setSources] = useState<Record<string, any>[]>([]);
@@ -16,6 +17,7 @@ export const CreateSessionView = () => {
     const [prompt, setPrompt] = useState('');
     const [requireApproval, setRequireApproval] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPolishing, setIsPolishing] = useState(false);
     const [error, setError] = useState('');
 
     const navigate = useNavigate();
@@ -25,7 +27,11 @@ export const CreateSessionView = () => {
             try {
                 const res = await listSources();
                 setSources(res.sources || []);
-                if (res.sources?.length > 0) {
+
+                const lastSource = localStorage.getItem('last_selected_source');
+                if (lastSource && res.sources?.some((s: any) => s.name === lastSource)) {
+                    setSelectedSource(lastSource);
+                } else if (res.sources?.length > 0) {
                     setSelectedSource(res.sources[0].name);
                 }
             } catch {
@@ -36,6 +42,20 @@ export const CreateSessionView = () => {
         };
         fetchSources();
     }, []);
+
+    const handlePolish = async () => {
+        if (!prompt || isPolishing) return;
+        setIsPolishing(true);
+        setError('');
+        try {
+            const polished = await polishPrompt(prompt);
+            setPrompt(polished);
+        } catch (err: unknown) {
+            setError('Failed to polish prompt.');
+        } finally {
+            setIsPolishing(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -49,6 +69,9 @@ export const CreateSessionView = () => {
             if (!finalTitle) {
                 finalTitle = await generateTitle(prompt);
             }
+
+            localStorage.setItem('last_selected_source', selectedSource);
+
             const res = await createSession(selectedSource, prompt, finalTitle || prompt, requireApproval);
             navigate(`/session/${res.id}`);
         } catch (err: unknown) {
@@ -94,16 +117,42 @@ export const CreateSessionView = () => {
                         fullWidth
                     />
 
-                    <TextField
-                        label="Prompt"
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        multiline
-                        rows={4}
-                        fullWidth
-                        required
-                        placeholder="e.g. Implement a new login screen..."
-                    />
+                    <Box sx={{ position: 'relative' }}>
+                        <TextField
+                            label="Prompt"
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            multiline
+                            rows={6}
+                            fullWidth
+                            required
+                            placeholder="e.g. Implement a new login screen..."
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: 1
+                                }
+                            }}
+                        />
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={handlePolish}
+                            disabled={!prompt || isPolishing || isSubmitting}
+                            startIcon={isPolishing ? <CircularProgress size={16} /> : <AutoFixHighIcon fontSize="small" />}
+                            sx={{
+                                position: 'absolute',
+                                right: 8,
+                                top: 8,
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                color: '#6750A4',
+                                borderRadius: 1,
+                                '&:hover': { bgcolor: 'rgba(103, 80, 164, 0.04)' }
+                            }}
+                        >
+                            {isPolishing ? 'Polishing...' : 'Polish'}
+                        </Button>
+                    </Box>
 
                     <FormControlLabel
                         control={
@@ -123,6 +172,11 @@ export const CreateSessionView = () => {
                         fullWidth
                         onClick={() => navigate('/')}
                         disabled={isSubmitting}
+                        sx={{
+                            borderRadius: 1, // MD3 Rectangular
+                            textTransform: 'none',
+                            fontWeight: 600
+                        }}
                     >
                         Cancel
                     </Button>
@@ -131,8 +185,18 @@ export const CreateSessionView = () => {
                         variant="contained"
                         fullWidth
                         disabled={isSubmitting || !selectedSource || !prompt}
+                        sx={{
+                            height: 56,
+                            bgcolor: '#6750A4',
+                            color: 'white',
+                            borderRadius: 1, // MD3 Rectangular
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            '&:hover': { bgcolor: '#553d8f' },
+                            '&.Mui-disabled': { bgcolor: 'action.disabledBackground' }
+                        }}
                     >
-                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Create'}
+                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Create Session'}
                     </Button>
                 </Box>
             </form>

@@ -1,14 +1,32 @@
 import { useEffect, useState } from 'react';
-import { Typography, CircularProgress, Box, Card, CardContent, Chip, Fab, Stack, LinearProgress } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import { listSessions, listSessionActivities, approvePlan, mergePullRequest } from '../api/client';
+import { Typography, CircularProgress, Box, Card, CardContent, Chip, Stack, LinearProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import { IconButton, Tooltip, Container, Button } from '@mui/material';
+import {
+    IconButton, Tooltip, Container, Button,
+    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
+} from '@mui/material';
 import { useNotifications } from '../hooks/useNotifications';
-import { getGitHubPat } from '../api/client';
+import {
+    listSessions, listSessionActivities, approvePlan,
+    mergePullRequest, checkPullRequestMerged, getGitHubPat, deleteSession
+} from '../api/client';
 import { auth, onAuthStateChanged, signOut } from '../firebase';
 import LogoutIcon from '@mui/icons-material/Logout';
+
+const formatRelativeTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
 
 export const HomeView = () => {
     const [sessions, setSessions] = useState<Record<string, any>[]>([]);
@@ -17,6 +35,9 @@ export const HomeView = () => {
     const [error, setError] = useState('');
     const [user, setUser] = useState<any>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+    const [longPressTimer, setLongPressTimer] = useState<any>(null);
     const navigate = useNavigate();
     const { notify } = useNotifications();
 
@@ -34,13 +55,26 @@ export const HomeView = () => {
             const sessionsWithActivities = await Promise.all(
                 (res.sessions || []).map(async (s: any) => {
                     const isCompleted = s.outputs?.length > 0;
-                    if (isCompleted) return s;
+                    let isMerged = false;
+                    const prOutput = s.outputs?.find((o: any) => o.pullRequest);
+
+                    if (prOutput) {
+                        const match = prOutput.pullRequest.url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+                        if (match) {
+                            const [, owner, repo, pullNumber] = match;
+                            try {
+                                isMerged = await checkPullRequestMerged(owner, repo, parseInt(pullNumber, 10));
+                            } catch (e) { }
+                        }
+                    }
+
+                    if (isCompleted) return { ...s, isMerged };
 
                     try {
                         const actsRes = await listSessionActivities(s.id);
-                        return { ...s, activities: actsRes.activities || [] };
+                        return { ...s, activities: actsRes.activities || [], isMerged };
                     } catch (e) {
-                        return s;
+                        return { ...s, isMerged };
                     }
                 })
             );
@@ -120,6 +154,38 @@ export const HomeView = () => {
         }
     };
 
+    const handleDeleteSession = async () => {
+        if (!sessionToDelete) return;
+
+        setActionLoading(`delete-${sessionToDelete}`);
+        try {
+            await deleteSession(sessionToDelete);
+            setSessions(sessions.filter(s => s.id !== sessionToDelete));
+            setDeleteConfirmOpen(false);
+            setSessionToDelete(null);
+        } catch (err: unknown) {
+            if (err instanceof Error) alert(`Delete failed: ${err.message}`);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const startLongPress = (sessionId: string) => {
+        const timer = setTimeout(() => {
+            if ('vibrate' in navigator) navigator.vibrate(50);
+            setSessionToDelete(sessionId);
+            setDeleteConfirmOpen(true);
+        }, 600);
+        setLongPressTimer(timer);
+    };
+
+    const stopLongPress = () => {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            setLongPressTimer(null);
+        }
+    };
+
     useEffect(() => {
         fetchSessions(true);
         const interval = setInterval(() => fetchSessions(false), 10000); // refresh dashboard every 10s
@@ -188,7 +254,7 @@ export const HomeView = () => {
                         No sessions found. Create one!
                     </Typography>
                 ) : (
-                    <Stack spacing={2} sx={{ pb: 8 }}>
+                    <Stack spacing={2} sx={{ pb: 12 }}> {/* Increased padding for sticky floor */}
                         {sessions.map((session) => {
                             const isCompleted = session.outputs?.length > 0;
                             const needsApproval = session.requirePlanApproval && session.activities?.some((a: any) => a.planGenerated);
@@ -197,16 +263,24 @@ export const HomeView = () => {
                                 <Card
                                     key={session.id}
                                     onClick={() => navigate(`/session/${session.id}`)}
+                                    onMouseDown={() => startLongPress(session.id)}
+                                    onMouseUp={stopLongPress}
+                                    onMouseLeave={stopLongPress}
+                                    onTouchStart={() => startLongPress(session.id)}
+                                    onTouchEnd={stopLongPress}
                                     sx={{
                                         cursor: 'pointer',
                                         transition: 'transform 0.2s',
                                         '&:active': { transform: 'scale(0.98)' },
                                         maxWidth: '100%',
-                                        width: '100%'
+                                        width: '100%',
+                                        borderRadius: 1,
+                                        position: 'relative',
+                                        overflow: 'hidden'
                                     }}
                                 >
-                                    <CardContent sx={{ pb: '16px !important' }}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+                                    <CardContent sx={{ pb: '16px !important', display: 'flex', alignItems: 'center', gap: 2 }}>
+                                        <Box sx={{ flexGrow: 1 }}>
                                             <Typography
                                                 variant="body2"
                                                 color="text.primary"
@@ -215,46 +289,55 @@ export const HomeView = () => {
                                                     wordBreak: 'break-word',
                                                     whiteSpace: 'pre-wrap',
                                                     lineHeight: 1.5,
-                                                    fontWeight: 500
+                                                    fontWeight: 500,
+                                                    mb: 0.5
                                                 }}
                                             >
                                                 {session.title || session.prompt || 'Untitled Session'}
                                             </Typography>
-                                            <Chip
-                                                label={isCompleted ? 'Done' : needsApproval ? 'Needs Approval' : 'In Progress'}
-                                                color={isCompleted ? 'success' : needsApproval ? 'warning' : 'primary'}
-                                                size="small"
-                                                variant={isCompleted ? 'filled' : 'outlined'}
-                                                sx={{ flexShrink: 0, height: 24, fontSize: '0.75rem', fontWeight: 600 }}
-                                            />
+                                            <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.8 }}>
+                                                {formatRelativeTime(session.createdAt)}
+                                            </Typography>
                                         </Box>
-
-                                        {(needsApproval || prOutput) && !isCompleted && (
-                                            <Box sx={{ mt: 2, display: 'flex', gap: 1 }} onClick={(e) => e.stopPropagation()}>
-                                                {needsApproval && (
-                                                    <Button
-                                                        variant="contained"
-                                                        color="warning"
-                                                        size="small"
-                                                        onClick={(e) => handleApprove(e, session.id)}
-                                                        disabled={actionLoading === `approve-${session.id}`}
-                                                    >
-                                                        {actionLoading === `approve-${session.id}` ? 'Approving...' : 'Approve Plan'}
-                                                    </Button>
-                                                )}
-                                                {prOutput && (
-                                                    <Button
-                                                        variant="contained"
-                                                        color="success"
-                                                        size="small"
-                                                        onClick={(e) => handleMerge(e, session.id, prOutput.pullRequest.url)}
-                                                        disabled={actionLoading === `merge-${session.id}`}
-                                                    >
-                                                        {actionLoading === `merge-${session.id}` ? 'Merging...' : 'Merge PR'}
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                        )}
+                                        <Box onClick={(e) => e.stopPropagation()} sx={{ flexShrink: 0 }}>
+                                            {isCompleted ? (
+                                                prOutput ? (
+                                                    session.isMerged ? (
+                                                        <Button
+                                                            variant="contained"
+                                                            disabled
+                                                            sx={{ borderRadius: 1, textTransform: 'none', bgcolor: '#6750A4', color: 'white!important', '&.Mui-disabled': { bgcolor: '#6750A4', color: 'white', opacity: 0.8 } }}
+                                                        >
+                                                            Merged
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            variant="contained"
+                                                            color="success"
+                                                            onClick={(e) => handleMerge(e, session.id, prOutput.pullRequest.url)}
+                                                            disabled={actionLoading === `merge-${session.id}`}
+                                                            sx={{ borderRadius: 1, textTransform: 'none' }}
+                                                        >
+                                                            {actionLoading === `merge-${session.id}` ? 'Merging...' : 'Merge'}
+                                                        </Button>
+                                                    )
+                                                ) : (
+                                                    <Button variant="contained" disabled sx={{ borderRadius: 1, textTransform: 'none' }}>Done</Button>
+                                                )
+                                            ) : needsApproval ? (
+                                                <Button
+                                                    variant="contained"
+                                                    color="warning"
+                                                    onClick={(e) => handleApprove(e, session.id)}
+                                                    disabled={actionLoading === `approve-${session.id}`}
+                                                    sx={{ borderRadius: 1, textTransform: 'none' }}
+                                                >
+                                                    {actionLoading === `approve-${session.id}` ? 'Approving...' : 'Approve'}
+                                                </Button>
+                                            ) : (
+                                                <Chip label="In Progress" color="primary" variant="outlined" size="small" sx={{ borderRadius: 1 }} />
+                                            )}
+                                        </Box>
                                     </CardContent>
                                 </Card>
                             );
@@ -262,20 +345,70 @@ export const HomeView = () => {
                     </Stack>
                 )}
 
-                <Fab
-                    color="primary"
-                    aria-label="add"
-                    onClick={() => navigate('/new')}
+                <Box
                     sx={{
                         position: 'fixed',
-                        bottom: 24,
-                        right: 24,
-                        boxShadow: 3
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        p: 2,
+                        bgcolor: 'background.default',
+                        zIndex: 1000
                     }}
                 >
-                    <AddIcon />
-                </Fab>
+                    <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={() => navigate('/new')}
+                        sx={{
+                            height: 60,
+                            bgcolor: '#6750A4',
+                            color: 'white',
+                            fontSize: '1rem',
+                            fontWeight: 600,
+                            borderRadius: 1,
+                            textTransform: 'none',
+                            '&:hover': {
+                                bgcolor: '#553d8f'
+                            }
+                        }}
+                    >
+                        + New Session
+                    </Button>
+                </Box>
             </Box>
+
+            <Dialog
+                open={deleteConfirmOpen}
+                onClose={() => setDeleteConfirmOpen(false)}
+                PaperProps={{
+                    sx: { borderRadius: 1 }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 600 }}>Delete Session?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        This will permanently delete this session. This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, pt: 0 }}>
+                    <Button
+                        onClick={() => setDeleteConfirmOpen(false)}
+                        sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleDeleteSession}
+                        color="error"
+                        variant="contained"
+                        disabled={actionLoading?.startsWith('delete-')}
+                        sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, boxShadow: 'none' }}
+                    >
+                        {actionLoading?.startsWith('delete-') ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Container >
     );
 };

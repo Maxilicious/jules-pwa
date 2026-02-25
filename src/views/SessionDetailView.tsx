@@ -213,7 +213,7 @@ export const SessionDetailView = () => {
                     {/* Overview Card */}
                     <Box sx={{
                         bgcolor: 'background.paper',
-                        borderRadius: 3,
+                        borderRadius: 1,
                         border: '1px solid',
                         borderColor: 'divider',
                         p: 2.5,
@@ -228,7 +228,7 @@ export const SessionDetailView = () => {
                                 color={hasOutputs ? 'success' : needsApproval ? 'warning' : 'primary'}
                                 variant={hasOutputs ? 'filled' : 'outlined'}
                                 size="small"
-                                sx={{ fontWeight: 600, height: 24, fontSize: '0.75rem' }}
+                                sx={{ fontWeight: 600, height: 24, fontSize: '0.75rem', borderRadius: 1 }}
                             />
                         </Box>
 
@@ -263,7 +263,7 @@ export const SessionDetailView = () => {
                             bgcolor: 'warning.light',
                             color: 'warning.contrastText',
                             p: 2.5,
-                            borderRadius: 3,
+                            borderRadius: 1,
                             display: 'flex',
                             flexDirection: { xs: 'column', sm: 'row' },
                             alignItems: { xs: 'flex-start', sm: 'center' },
@@ -296,7 +296,7 @@ export const SessionDetailView = () => {
                         <Box sx={{
                             bgcolor: 'background.paper',
                             p: 2.5,
-                            borderRadius: 3,
+                            borderRadius: 1,
                             border: '1px solid',
                             borderColor: 'divider',
                             borderLeft: '4px solid',
@@ -337,40 +337,48 @@ export const SessionDetailView = () => {
 
                                                 <Stack direction="row" spacing={1.5} sx={{ mt: 1 }}>
                                                     <Button
-                                                        variant="outlined"
-                                                        color="inherit"
-                                                        size="small"
-                                                        startIcon={<OpenInNewIcon fontSize="small" />}
+                                                        variant="contained"
                                                         onClick={() => window.open(out.pullRequest.url, '_blank')}
                                                         sx={{
-                                                            borderRadius: 2,
+                                                            borderRadius: 1,
                                                             fontWeight: 600,
                                                             textTransform: 'none',
-                                                            borderColor: 'divider',
-                                                            color: 'text.secondary',
-                                                            flex: 1
+                                                            bgcolor: '#6750A4',
+                                                            color: 'white',
+                                                            flex: 1,
+                                                            py: 1.5,
+                                                            boxShadow: 'none',
+                                                            '&:hover': { bgcolor: '#553d8f', boxShadow: 'none' }
                                                         }}
                                                     >
-                                                        Review PR
+                                                        View on Github
                                                     </Button>
 
                                                     <Button
                                                         variant="contained"
-                                                        color="success"
-                                                        size="small"
                                                         disabled={merging || mergeSuccess}
-                                                        startIcon={merging ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon fontSize="small" />}
                                                         onClick={() => handleMerge(out.pullRequest.url)}
                                                         sx={{
-                                                            borderRadius: 2,
+                                                            borderRadius: 1,
                                                             fontWeight: 600,
                                                             textTransform: 'none',
-                                                            boxShadow: 'none',
+                                                            bgcolor: mergeSuccess ? '#6750A4' : '#2e7d32', // Success green for merge
+                                                            color: 'white!important',
                                                             flex: 1,
-                                                            '&:hover': { boxShadow: 'none' }
+                                                            py: 1.5,
+                                                            boxShadow: 'none',
+                                                            '&:hover': {
+                                                                bgcolor: mergeSuccess ? '#553d8f' : '#1b5e20',
+                                                                boxShadow: 'none'
+                                                            },
+                                                            '&.Mui-disabled': {
+                                                                bgcolor: mergeSuccess ? '#6750A4' : '#2e7d32',
+                                                                color: 'white',
+                                                                opacity: 0.8
+                                                            }
                                                         }}
                                                     >
-                                                        {mergeSuccess ? 'Merged!' : 'Merge'}
+                                                        {merging ? 'Merging...' : mergeSuccess ? 'Merged' : 'Merge'}
                                                     </Button>
                                                 </Stack>
 
