@@ -234,7 +234,8 @@ export const SessionDetailView = () => {
 
                         <Typography variant="body2" sx={{
                             whiteSpace: 'pre-wrap',
-                            color: 'text.secondary',
+                            color: 'text.primary',
+                            fontWeight: 600,
                             lineHeight: 1.5,
                             overflowWrap: 'anywhere',
                             wordBreak: 'break-word',

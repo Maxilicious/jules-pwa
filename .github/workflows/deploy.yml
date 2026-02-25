@@ -21,7 +21,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build Application
-        run: npm run build -- --legacy-peer-deps
+        run: npm run build
         env:
           VITE_JULES_API_KEY: ${{ secrets.VITE_JULES_API_KEY }}
           VITE_GITHUB_PAT: ${{ secrets.VITE_GITHUB_PAT }}
