@@ -18,10 +18,10 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build Application
-        run: npm run build
+        run: npm run build -- --legacy-peer-deps
         env:
           VITE_JULES_API_KEY: ${{ secrets.VITE_JULES_API_KEY }}
           VITE_GITHUB_PAT: ${{ secrets.VITE_GITHUB_PAT }}
