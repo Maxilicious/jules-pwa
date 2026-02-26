@@ -78,7 +78,7 @@ export const SessionDetailView = () => {
             sessionRef.current = { ...sessionRes, isMerged };
 
             const needsApprovalNow = sessionRes.requirePlanApproval && sessionRes.outputs?.length === 0 && acts.some((a: any) => a.planGenerated);
-            const timestamp = sessionRes.updatedAt || sessionRes.createdAt;
+            const timestamp = sessionRes.updateTime || sessionRes.createTime;
 
             if (needsApprovalNow) {
                 notify('Jules Plan Ready', `Session "${sessionRes.title}" requires your approval.`, window.location.href, `approval_${id}`, timestamp);

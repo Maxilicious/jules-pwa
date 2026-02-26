@@ -85,7 +85,7 @@ export const HomeView = () => {
             sessionsWithActivities.forEach((s: any) => {
                 const isCompleted = s.outputs?.length > 0;
                 const needsApproval = s.requirePlanApproval && s.activities?.some((a: any) => a.planGenerated);
-                const timestamp = s.updatedAt || s.createdAt;
+                const timestamp = s.updateTime || s.createTime;
 
                 if (isCompleted) {
                     notify('Pull Request Ready!', `Jules finished the task: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`, `complete_${s.id}`, timestamp);
@@ -303,7 +303,7 @@ export const HomeView = () => {
                                                     •
                                                 </Typography>
                                                 <Typography variant="caption" color="text.secondary">
-                                                    {formatRelativeTime(session.createdAt)}
+                                                    {formatRelativeTime(session.createTime)}
                                                 </Typography>
                                             </Stack>
                                         </Box>
