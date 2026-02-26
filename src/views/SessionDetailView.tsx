@@ -6,7 +6,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SendIcon from '@mui/icons-material/Send';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { getSession, approvePlan, listSessionActivities, sendMessage, mergePullRequest, getGitHubPat } from '../api/client';
+import { getSession, approvePlan, listSessionActivities, sendMessage, mergePullRequest, checkPullRequestMerged, getGitHubPat } from '../api/client';
 import { useNotifications } from '../hooks/useNotifications';
 
 export const SessionDetailView = () => {
@@ -60,6 +60,22 @@ export const SessionDetailView = () => {
             sessionRef.current = sessionRes;
 
             const acts = activitiesRes.activities || [];
+
+            // Check if PR is merged
+            let isMerged = false;
+            const prOutput = sessionRes.outputs?.find((o: any) => o.pullRequest);
+            if (prOutput) {
+                const match = prOutput.pullRequest.url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+                if (match) {
+                    const [, owner, repo, pullNumber] = match;
+                    try {
+                        isMerged = await checkPullRequestMerged(owner, repo, parseInt(pullNumber, 10));
+                    } catch (e) { }
+                }
+            }
+
+            setSession({ ...sessionRes, isMerged });
+            sessionRef.current = { ...sessionRes, isMerged };
 
             const needsApprovalNow = sessionRes.requirePlanApproval && sessionRes.outputs?.length === 0 && acts.some((a: any) => a.planGenerated);
             const timestamp = sessionRes.updatedAt || sessionRes.createdAt;
@@ -225,10 +241,17 @@ export const SessionDetailView = () => {
                             </Typography>
                             <Chip
                                 label={hasOutputs ? 'Completed' : needsApproval ? 'Needs Approval' : 'In Progress'}
-                                color={hasOutputs ? 'success' : needsApproval ? 'warning' : 'primary'}
                                 variant={hasOutputs ? 'filled' : 'outlined'}
                                 size="small"
-                                sx={{ fontWeight: 600, height: 24, fontSize: '0.75rem', borderRadius: 1 }}
+                                sx={{
+                                    fontWeight: 600,
+                                    height: 24,
+                                    fontSize: '0.75rem',
+                                    borderRadius: 1,
+                                    bgcolor: hasOutputs ? '#2e7d32' : 'transparent',
+                                    color: hasOutputs ? 'white' : (needsApproval ? 'warning.main' : 'primary.main'),
+                                    borderColor: hasOutputs ? '#2e7d32' : 'divider'
+                                }}
                             />
                         </Box>
 
@@ -364,29 +387,29 @@ export const SessionDetailView = () => {
 
                                                     <Button
                                                         variant="contained"
-                                                        disabled={merging || mergeSuccess}
+                                                        disabled={merging || mergeSuccess || session.isMerged}
                                                         onClick={() => handleMerge(out.pullRequest.url)}
                                                         sx={{
                                                             borderRadius: 1,
                                                             fontWeight: 600,
                                                             textTransform: 'none',
-                                                            bgcolor: mergeSuccess ? '#6750A4' : '#2e7d32',
+                                                            bgcolor: (mergeSuccess || session.isMerged) ? '#6750A4' : '#2e7d32',
                                                             color: 'white!important',
                                                             flex: 1,
                                                             py: 1.5,
                                                             boxShadow: 'none',
                                                             '&:hover': {
-                                                                bgcolor: mergeSuccess ? '#553d8f' : '#1b5e20',
+                                                                bgcolor: (mergeSuccess || session.isMerged) ? '#553d8f' : '#1b5e20',
                                                                 boxShadow: 'none'
                                                             },
                                                             '&.Mui-disabled': {
-                                                                bgcolor: mergeSuccess ? '#6750A4' : '#2e7d32',
+                                                                bgcolor: (mergeSuccess || session.isMerged) ? '#6750A4' : '#2e7d32',
                                                                 color: 'white',
                                                                 opacity: 0.8
                                                             }
                                                         }}
                                                     >
-                                                        {merging ? 'Merging...' : mergeSuccess ? 'Merged' : 'Merge'}
+                                                        {merging ? 'Merging...' : (mergeSuccess || session.isMerged) ? 'Merged' : 'Merge'}
                                                     </Button>
                                                 </Stack>
 

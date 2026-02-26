@@ -297,7 +297,7 @@ export const HomeView = () => {
                                             </Typography>
                                             <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.8 }}>
                                                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                                    {session.sourceContext?.source || 'Unknown Repo'}
+                                                    {session.sourceContext?.source ? session.sourceContext.source.split('/').pop() : 'Unknown Repo'}
                                                 </Typography>
                                                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                                                     •
@@ -321,10 +321,17 @@ export const HomeView = () => {
                                                     ) : (
                                                         <Button
                                                             variant="contained"
-                                                            color="success"
                                                             onClick={(e) => handleMerge(e, session.id, prOutput.pullRequest.url)}
                                                             disabled={actionLoading === `merge-${session.id}`}
-                                                            sx={{ borderRadius: 1, textTransform: 'none' }}
+                                                            sx={{
+                                                                borderRadius: 1,
+                                                                textTransform: 'none',
+                                                                bgcolor: '#2e7d32',
+                                                                color: 'white!important',
+                                                                fontWeight: 600,
+                                                                '&:hover': { bgcolor: '#1b5e20' },
+                                                                '&.Mui-disabled': { bgcolor: '#2e7d32', opacity: 0.6, color: 'white' }
+                                                            }}
                                                         >
                                                             {actionLoading === `merge-${session.id}` ? 'Merging...' : 'Merge'}
                                                         </Button>
