@@ -247,7 +247,7 @@ export const SessionDetailView = () => {
                                     fontWeight: 600,
                                     height: 24,
                                     fontSize: '0.75rem',
-                                    borderRadius: 1,
+                                    borderRadius: '4px', // explicitly squared to match other cards/buttons
                                     bgcolor: hasOutputs ? '#2e7d32' : 'transparent',
                                     color: hasOutputs ? 'white' : (needsApproval ? 'warning.main' : 'primary.main'),
                                     borderColor: hasOutputs ? '#2e7d32' : 'divider'

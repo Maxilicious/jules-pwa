@@ -350,7 +350,7 @@ export const HomeView = () => {
                                                     {actionLoading === `approve-${session.id}` ? 'Approving...' : 'Approve'}
                                                 </Button>
                                             ) : (
-                                                <Chip label="In Progress" color="primary" variant="outlined" size="small" sx={{ borderRadius: 1 }} />
+                                                <Chip label="In Progress" color="primary" variant="outlined" size="small" sx={{ borderRadius: '4px' }} />
                                             )}
                                         </Box>
                                     </CardContent>
