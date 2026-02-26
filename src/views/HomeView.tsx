@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Typography, CircularProgress, Box, Card, CardContent, Chip, Stack, LinearProgress } from '@mui/material';
+import { Typography, Box, Card, CardContent, Chip, Stack, LinearProgress, Skeleton } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import {
@@ -244,9 +244,21 @@ export const HomeView = () => {
 
 
                 {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                        <CircularProgress />
-                    </Box>
+                    <Stack spacing={2} sx={{ pb: 12 }}>
+                        {[...Array(4)].map((_, index) => (
+                            <Card key={index} sx={{ borderRadius: 1, width: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                                <CardContent sx={{ pb: '16px !important', display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Box sx={{ flexGrow: 1 }}>
+                                        <Skeleton variant="text" width="70%" height={24} sx={{ mb: 0.5 }} />
+                                        <Skeleton variant="text" width="40%" height={16} />
+                                    </Box>
+                                    <Box sx={{ flexShrink: 0 }}>
+                                        <Skeleton variant="rectangular" width={80} height={28} sx={{ borderRadius: '4px' }} />
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </Stack>
                 ) : error ? (
                     <Typography color="error">{error}</Typography>
                 ) : sessions.length === 0 ? (
