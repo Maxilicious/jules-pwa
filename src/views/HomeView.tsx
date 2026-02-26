@@ -289,15 +289,23 @@ export const HomeView = () => {
                                                     wordBreak: 'break-word',
                                                     whiteSpace: 'pre-wrap',
                                                     lineHeight: 1.5,
-                                                    fontWeight: 500,
-                                                    mb: 0.5
+                                                    fontWeight: 600,
+                                                    mb: 0.25
                                                 }}
                                             >
                                                 {session.title || session.prompt || 'Untitled Session'}
                                             </Typography>
-                                            <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.8 }}>
-                                                {formatRelativeTime(session.createdAt)}
-                                            </Typography>
+                                            <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.8 }}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                    {session.sourceContext?.source || 'Unknown Repo'}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                    •
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {formatRelativeTime(session.createdAt)}
+                                                </Typography>
+                                            </Stack>
                                         </Box>
                                         <Box onClick={(e) => e.stopPropagation()} sx={{ flexShrink: 0 }}>
                                             {isCompleted ? (

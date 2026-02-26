@@ -280,12 +280,19 @@ export const SessionDetailView = () => {
                             </Box>
                             <Button
                                 variant="contained"
-                                color="warning"
-                                size="small"
                                 onClick={handleApprove}
                                 disabled={approving}
                                 startIcon={approving ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon fontSize="small" />}
-                                sx={{ whiteSpace: 'nowrap', boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}
+                                sx={{
+                                    whiteSpace: 'nowrap',
+                                    boxShadow: 'none',
+                                    bgcolor: '#2e7d32',
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    textTransform: 'none',
+                                    '&:hover': { bgcolor: '#1b5e20', boxShadow: 'none' },
+                                    '&.Mui-disabled': { bgcolor: '#2e7d32', opacity: 0.6, color: 'white' }
+                                }}
                             >
                                 Approve Plan
                             </Button>
@@ -363,7 +370,7 @@ export const SessionDetailView = () => {
                                                             borderRadius: 1,
                                                             fontWeight: 600,
                                                             textTransform: 'none',
-                                                            bgcolor: mergeSuccess ? '#6750A4' : '#2e7d32', // Success green for merge
+                                                            bgcolor: mergeSuccess ? '#6750A4' : '#2e7d32',
                                                             color: 'white!important',
                                                             flex: 1,
                                                             py: 1.5,
