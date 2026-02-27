@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 export const useNotifications = () => {
     useEffect(() => {
         if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-            Notification.requestPermission();
+            Notification.requestPermission().catch(console.error);
         }
     }, []);
 
@@ -21,7 +21,7 @@ export const useNotifications = () => {
         }
     };
 
-    const notify = (title: string, body: string, url?: string, dedupeKey?: string, timestampStr?: string) => {
+    const notify = async (title: string, body: string, url?: string, dedupeKey?: string, timestampStr?: string) => {
         // Feature: Ignore notifications for events older than today
         if (timestampStr) {
             const eventTime = new Date(timestampStr).getTime();
@@ -31,26 +31,27 @@ export const useNotifications = () => {
             }
         }
 
-        if (dedupeKey) {
-            if (hasNotified(dedupeKey)) return;
-            markNotified(dedupeKey);
+        if (dedupeKey && hasNotified(dedupeKey)) return;
+
+        if (!('Notification' in window)) return;
+
+        let permission = Notification.permission;
+
+        // Request permission if not already decided, which often requires user interaction
+        if (permission === 'default') {
+            try {
+                permission = await Notification.requestPermission();
+            } catch (e) {
+                console.error('Notification permission request failed:', e);
+            }
         }
 
-        if ('Notification' in window && Notification.permission === 'granted') {
-            // Using service worker showNotification is more reliable for PWAs,
-            // especially on mobile/Android browsers which may throw "illegal constructor"
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.ready.then((registration) => {
-                    registration.showNotification(title, {
-                        body,
-                        icon: '/pwa-192x192.png',
-                        badge: '/pwa-192x192.png', // Small icon for notification bar
-                        data: { url },
-                        tag: 'jules-notification', // Replace previous notification of same type
-                    });
-                });
-            } else {
-                // Fallback for environments without service worker (e.g. non-PWA dev mode)
+        if (permission === 'granted') {
+            if (dedupeKey) {
+                markNotified(dedupeKey);
+            }
+
+            const showStandardNotification = () => {
                 try {
                     const notification = new Notification(title, {
                         body,
@@ -63,8 +64,34 @@ export const useNotifications = () => {
                         };
                     }
                 } catch (e) {
-                    console.error('Notification failed:', e);
+                    console.error('Notification constructor failed:', e);
                 }
+            };
+
+            // Using service worker showNotification is more reliable for PWAs,
+            // especially on mobile/Android browsers which may throw "illegal constructor"
+            if ('serviceWorker' in navigator) {
+                try {
+                    // Use getRegistration instead of ready to avoid hanging in dev mode or uninstalled PWAs
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration && registration.active) {
+                        await registration.showNotification(title, {
+                            body,
+                            icon: '/pwa-192x192.png',
+                            badge: '/pwa-192x192.png', // Small icon for notification bar
+                            data: { url },
+                            tag: 'jules-notification', // Replace previous notification of same type
+                        });
+                    } else {
+                        // Fallback for environments without an active service worker (e.g. non-PWA dev mode)
+                        showStandardNotification();
+                    }
+                } catch (e) {
+                    console.error('Service worker notification failed:', e);
+                    showStandardNotification();
+                }
+            } else {
+                showStandardNotification();
             }
         }
     };
