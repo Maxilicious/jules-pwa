@@ -12,12 +12,16 @@ jobs:
 
       # Build
       - run: npm install && npm run build --if-present
+        env:
+          VITE_JULES_API_KEY: ${{ secrets.VITE_JULES_API_KEY }}
+          VITE_GITHUB_PAT: ${{ secrets.VITE_GITHUB_PAT }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
 
       # Deploy
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          repoToken: ${{ secrets.TOKEN }}
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
           projectId: jules-pwa-firebase-8899

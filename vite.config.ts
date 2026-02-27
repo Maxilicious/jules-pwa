@@ -6,26 +6,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/jules\.googleapis\.com\/v1alpha\/.*/i,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'jules-api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 1 week
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
-      },
       manifest: {
         name: 'Jules AI PWA',
         short_name: 'Jules',
