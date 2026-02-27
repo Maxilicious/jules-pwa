@@ -105,7 +105,7 @@ export const SessionDetailView = () => {
         setApproving(true);
         try {
             await approvePlan(id);
-            await fetchSessionData(false);
+            await queryClient.invalidateQueries({ queryKey: ['sessionData', id] });
         } catch (err: unknown) {
             if (err instanceof Error) {
                 alert(`Approval failed: ${err.message}`);
@@ -123,7 +123,7 @@ export const SessionDetailView = () => {
         try {
             await sendMessage(id, chatInput.trim());
             setChatInput('');
-            await fetchSessionData(false);
+            await queryClient.invalidateQueries({ queryKey: ['sessionData', id] });
         } catch (err: unknown) {
             if (err instanceof Error) {
                 alert(`Message failed: ${err.message}`);
@@ -138,7 +138,7 @@ export const SessionDetailView = () => {
         setSending(true);
         try {
             await sendMessage(id, "Please create a GitHub pull request for these changes.");
-            await fetchSessionData(false);
+            await queryClient.invalidateQueries({ queryKey: ['sessionData', id] });
         } catch (err: unknown) {
             if (err instanceof Error) {
                 alert(`Request failed: ${err.message}`);
@@ -170,7 +170,7 @@ export const SessionDetailView = () => {
         try {
             await mergePullRequest(owner, repo, parseInt(pullNumber, 10));
             setMergeSuccess(true);
-            await fetchSessionData(false);
+            await queryClient.invalidateQueries({ queryKey: ['sessionData', id] });
         } catch (err: unknown) {
             if (err instanceof Error) {
                 setMergeError(err.message);
@@ -459,7 +459,7 @@ export const SessionDetailView = () => {
                                 Activity Log
                             </Typography>
                             <Stack spacing={1.5} sx={{ mb: 12 }}>
-                                {activities.reduce((acc: any[], act, i) => {
+                                {activities.reduce((acc: any[], act: any, i: number) => {
                                     const isUser = act.originator === 'user';
                                     const isAgentMsg = !!act.agentMessage;
                                     const isUserMsg = !!act.userMessage;
@@ -486,7 +486,7 @@ export const SessionDetailView = () => {
 
                                     acc.push({ ...act, text, isSystemEvent, isUser, isLatest: i === activities.length - 1 });
                                     return acc;
-                                }, []).map((item, i) => {
+                                }, []).map((item: any, i: number) => {
                                     if (!item.isSystemEvent) {
                                         return (
                                             <Box key={item.id || i} sx={{
