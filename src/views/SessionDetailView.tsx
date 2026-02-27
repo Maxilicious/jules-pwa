@@ -6,20 +6,17 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SendIcon from '@mui/icons-material/Send';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSession, approvePlan, listSessionActivities, sendMessage, mergePullRequest, checkPullRequestMerged, getGitHubPat } from '../api/client';
 import { useNotifications } from '../hooks/useNotifications';
 
 export const SessionDetailView = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { notify } = useNotifications();
 
     // State
-    const [session, setSession] = useState<Record<string, any> | null>(null);
-    const [activities, setActivities] = useState<Record<string, any>[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState('');
     const [approving, setApproving] = useState(false);
     const [chatInput, setChatInput] = useState('');
     const [sending, setSending] = useState(false);
@@ -31,84 +28,77 @@ export const SessionDetailView = () => {
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const isCompletedRef = useRef(false);
-    const sessionRef = useRef<Record<string, any> | null>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    const fetchSessionData = async () => {
+        if (!id) throw new Error("No session ID provided");
+
+        const [sessionRes, activitiesRes] = await Promise.all([
+            getSession(id),
+            listSessionActivities(id).catch(() => ({ activities: [] }))
+        ]);
+
+        const acts = activitiesRes.activities || [];
+
+        // Check if PR is merged
+        let isMerged = false;
+        const prOutput = sessionRes.outputs?.find((o: any) => o.pullRequest);
+        if (prOutput) {
+            const match = prOutput.pullRequest.url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+            if (match) {
+                const [, owner, repo, pullNumber] = match;
+                try {
+                    isMerged = await checkPullRequestMerged(owner, repo, parseInt(pullNumber, 10));
+                } catch (e) { }
+            }
+        }
+
+        const sessionData = { ...sessionRes, isMerged };
+
+        const needsApprovalNow = sessionRes.requirePlanApproval && sessionRes.outputs?.length === 0 && acts.some((a: any) => a.planGenerated);
+        const timestamp = sessionRes.updateTime || sessionRes.createTime;
+
+        if (needsApprovalNow) {
+            notify('Jules Plan Ready', `Session "${sessionRes.title}" requires your approval.`, window.location.href, `approval_${id}`, timestamp);
+        }
+
+        if (sessionRes.outputs && sessionRes.outputs.length > 0) {
+            isCompletedRef.current = true;
+            notify('Jules Session Complete', `Session "${sessionRes.title}" is finished!`, window.location.href, `complete_${id}`, timestamp);
+        }
+
+        return { session: sessionData, activities: acts };
+    };
+
+    const {
+        data,
+        isLoading: loading,
+        isFetching: refreshing,
+        error: queryError
+    } = useQuery({
+        queryKey: ['sessionData', id],
+        queryFn: fetchSessionData,
+        enabled: !!id,
+        refetchInterval: (query) => {
+            // Stop polling if the session is completed or we encountered an error
+            if (query.state.error) return false;
+            // Check if it's completed based on cached data
+            const isCompleted = query.state.data?.session?.outputs?.length > 0;
+            return isCompleted ? false : 5000;
+        },
+        staleTime: 5000,
+    });
+
+    const error = queryError instanceof Error ? queryError.message : (queryError ? "An error occurred fetching session details." : "");
+    const session = data?.session || null;
+    const activities = data?.activities || [];
+
     useEffect(() => {
         scrollToBottom();
     }, [activities.length]);
-
-    const fetchSessionData = async (isInitial = false) => {
-        if (!id) return;
-
-        if (isInitial && !sessionRef.current) {
-            setLoading(true);
-        } else {
-            setRefreshing(true);
-        }
-
-        try {
-            const [sessionRes, activitiesRes] = await Promise.all([
-                getSession(id),
-                listSessionActivities(id).catch(() => ({ activities: [] }))
-            ]);
-
-            setSession(sessionRes);
-            sessionRef.current = sessionRes;
-
-            const acts = activitiesRes.activities || [];
-
-            // Check if PR is merged
-            let isMerged = false;
-            const prOutput = sessionRes.outputs?.find((o: any) => o.pullRequest);
-            if (prOutput) {
-                const match = prOutput.pullRequest.url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-                if (match) {
-                    const [, owner, repo, pullNumber] = match;
-                    try {
-                        isMerged = await checkPullRequestMerged(owner, repo, parseInt(pullNumber, 10));
-                    } catch (e) { }
-                }
-            }
-
-            setSession({ ...sessionRes, isMerged });
-            sessionRef.current = { ...sessionRes, isMerged };
-
-            const needsApprovalNow = sessionRes.requirePlanApproval && sessionRes.outputs?.length === 0 && acts.some((a: any) => a.planGenerated);
-            const timestamp = sessionRes.updateTime || sessionRes.createTime;
-
-            if (needsApprovalNow) {
-                notify('Jules Plan Ready', `Session "${sessionRes.title}" requires your approval.`, window.location.href, `approval_${id}`, timestamp);
-            }
-
-            if (sessionRes.outputs && sessionRes.outputs.length > 0) {
-                isCompletedRef.current = true;
-                notify('Jules Session Complete', `Session "${sessionRes.title}" is finished!`, window.location.href, `complete_${id}`, timestamp);
-            }
-
-            setActivities(acts);
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                setError(err.message);
-            }
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchSessionData(true);
-        const interval = setInterval(() => {
-            if (!isCompletedRef.current) {
-                fetchSessionData(false); // Call without recreating closure issues
-            }
-        }, 5000);
-        return () => clearInterval(interval);
-    }, [id]);
 
     const handleApprove = async () => {
         if (!id) return;

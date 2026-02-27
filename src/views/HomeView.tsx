@@ -6,6 +6,7 @@ import {
     IconButton, Tooltip, Container, Button,
     Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
 } from '@mui/material';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNotifications } from '../hooks/useNotifications';
 import {
     listSessions, listSessionActivities, approvePlan,
@@ -29,79 +30,76 @@ const formatRelativeTime = (dateStr: string) => {
 };
 
 export const HomeView = () => {
-    const [sessions, setSessions] = useState<Record<string, any>[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState('');
     const [user, setUser] = useState<any>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
     const [longPressTimer, setLongPressTimer] = useState<any>(null);
+
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { notify } = useNotifications();
 
-    const fetchSessions = async (isInitial = false) => {
-        if (isInitial && sessions.length === 0) {
-            setLoading(true);
-        } else {
-            setRefreshing(true);
-        }
+    const fetchSessionsData = async () => {
+        const res = await listSessions(20);
 
-        try {
-            const res = await listSessions(20);
-
-            // Fetch activities for pending/needs approval sessions to show richer status
-            const sessionsWithActivities = await Promise.all(
-                (res.sessions || []).map(async (s: any) => {
-                    const isCompleted = s.outputs?.length > 0;
-                    let isMerged = false;
-                    const prOutput = s.outputs?.find((o: any) => o.pullRequest);
-
-                    if (prOutput) {
-                        const match = prOutput.pullRequest.url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-                        if (match) {
-                            const [, owner, repo, pullNumber] = match;
-                            try {
-                                isMerged = await checkPullRequestMerged(owner, repo, parseInt(pullNumber, 10));
-                            } catch (e) { }
-                        }
-                    }
-
-                    if (isCompleted) return { ...s, isMerged };
-
-                    try {
-                        const actsRes = await listSessionActivities(s.id);
-                        return { ...s, activities: actsRes.activities || [], isMerged };
-                    } catch (e) {
-                        return { ...s, isMerged };
-                    }
-                })
-            );
-
-            setSessions(sessionsWithActivities);
-
-            // Trigger notifications safely outside state setter
-            sessionsWithActivities.forEach((s: any) => {
+        // Fetch activities for pending/needs approval sessions to show richer status
+        const sessionsWithActivities = await Promise.all(
+            (res.sessions || []).map(async (s: any) => {
                 const isCompleted = s.outputs?.length > 0;
-                const needsApproval = s.requirePlanApproval && s.activities?.some((a: any) => a.planGenerated);
-                const timestamp = s.updateTime || s.createTime;
+                let isMerged = false;
+                const prOutput = s.outputs?.find((o: any) => o.pullRequest);
 
-                if (isCompleted) {
-                    notify('Pull Request Ready!', `Jules finished the task: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`, `complete_${s.id}`, timestamp);
-                } else if (needsApproval) {
-                    notify('Plan Awaiting Approval', `Jules needs your input for session: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`, `approval_${s.id}`, timestamp);
+                if (prOutput) {
+                    const match = prOutput.pullRequest.url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+                    if (match) {
+                        const [, owner, repo, pullNumber] = match;
+                        try {
+                            isMerged = await checkPullRequestMerged(owner, repo, parseInt(pullNumber, 10));
+                        } catch (e) { }
+                    }
                 }
-            });
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                setError(err.message);
+
+                if (isCompleted) return { ...s, isMerged };
+
+                try {
+                    const actsRes = await listSessionActivities(s.id);
+                    return { ...s, activities: actsRes.activities || [], isMerged };
+                } catch (e) {
+                    return { ...s, isMerged };
+                }
+            })
+        );
+
+        // Trigger notifications safely
+        sessionsWithActivities.forEach((s: any) => {
+            const isCompleted = s.outputs?.length > 0;
+            const needsApproval = s.requirePlanApproval && s.activities?.some((a: any) => a.planGenerated);
+            const timestamp = s.updateTime || s.createTime;
+
+            if (isCompleted) {
+                notify('Pull Request Ready!', `Jules finished the task: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`, `complete_${s.id}`, timestamp);
+            } else if (needsApproval) {
+                notify('Plan Awaiting Approval', `Jules needs your input for session: "${s.title || 'Untitled'}".`, `${window.location.origin}/session/${s.id}`, `approval_${s.id}`, timestamp);
             }
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
+        });
+
+        return sessionsWithActivities;
     };
+
+    const {
+        data: sessions = [],
+        isLoading: loading,
+        isFetching: refreshing,
+        error: queryError
+    } = useQuery({
+        queryKey: ['sessions'],
+        queryFn: fetchSessionsData,
+        refetchInterval: 10000,
+        staleTime: 5000, // Data remains fresh for 5 seconds before a background fetch is triggered on mount/focus
+    });
+
+    const error = queryError instanceof Error ? queryError.message : (queryError ? "An error occurred fetching sessions." : "");
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (u: any) => {
@@ -123,7 +121,7 @@ export const HomeView = () => {
         setActionLoading(`approve-${sessionId}`);
         try {
             await approvePlan(sessionId);
-            await fetchSessions(false);
+            await queryClient.invalidateQueries({ queryKey: ['sessions'] });
         } catch (err: unknown) {
             if (err instanceof Error) alert(`Approval failed: ${err.message}`);
         } finally {
@@ -146,7 +144,7 @@ export const HomeView = () => {
         setActionLoading(`merge-${sessionId}`);
         try {
             await mergePullRequest(owner, repo, parseInt(pullNumber, 10));
-            await fetchSessions(false);
+            await queryClient.invalidateQueries({ queryKey: ['sessions'] });
         } catch (err: unknown) {
             if (err instanceof Error) alert(`Merge failed: ${err.message}`);
         } finally {
@@ -160,7 +158,13 @@ export const HomeView = () => {
         setActionLoading(`delete-${sessionToDelete}`);
         try {
             await deleteSession(sessionToDelete);
-            setSessions(sessions.filter(s => s.id !== sessionToDelete));
+
+            // Optimistically update the cache
+            queryClient.setQueryData(['sessions'], (oldSessions: any[] | undefined) => {
+                if (!oldSessions) return [];
+                return oldSessions.filter(s => s.id !== sessionToDelete);
+            });
+
             setDeleteConfirmOpen(false);
             setSessionToDelete(null);
         } catch (err: unknown) {
@@ -185,12 +189,6 @@ export const HomeView = () => {
             setLongPressTimer(null);
         }
     };
-
-    useEffect(() => {
-        fetchSessions(true);
-        const interval = setInterval(() => fetchSessions(false), 10000); // refresh dashboard every 10s
-        return () => clearInterval(interval);
-    }, []);
 
     return (
         <Container maxWidth="md" disableGutters>
