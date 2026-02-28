@@ -269,6 +269,7 @@ export const HomeView = () => {
                             const isCompleted = session.outputs?.length > 0;
                             const needsApproval = session.requirePlanApproval && session.activities?.some((a: any) => a.planGenerated);
                             const prOutput = session.outputs?.find((o: any) => o.pullRequest);
+                            const displayText = session.title || session.prompt || 'Untitled Session';
                             return (
                                 <Card
                                     key={session.id}
@@ -303,7 +304,9 @@ export const HomeView = () => {
                                                     mb: 0.25
                                                 }}
                                             >
-                                                {session.title || session.prompt || 'Untitled Session'}
+                                                {displayText.length > 200
+                                                    ? displayText.substring(0, 200) + '...'
+                                                    : displayText}
                                             </Typography>
                                             <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.8 }}>
                                                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
