@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import {
     IconButton, Tooltip, Container, Button,
-    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
+    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+    Snackbar, Alert
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNotifications } from '../hooks/useNotifications';
@@ -35,6 +36,9 @@ export const HomeView = () => {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
     const [longPressTimer, setLongPressTimer] = useState<any>(null);
+    const [mergeSuccess, setMergeSuccess] = useState(false);
+    const [mergeError, setMergeError] = useState('');
+    const [mergedSessionIds, setMergedSessionIds] = useState<Set<string>>(new Set());
 
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -132,21 +136,28 @@ export const HomeView = () => {
     const handleMerge = async (e: React.MouseEvent, sessionId: string, prUrl: string) => {
         e.stopPropagation();
         const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-        if (!match) return alert('Could not parse pull request URL.');
+        if (!match) {
+            setMergeError('Could not parse pull request URL.');
+            return;
+        }
 
         const [, owner, repo, pullNumber] = match;
         const pat = getGitHubPat();
 
         if (!pat) {
-            return alert('GitHub PAT not found in .env.local');
+            setMergeError('GitHub PAT not found in Settings.');
+            return;
         }
 
         setActionLoading(`merge-${sessionId}`);
+        setMergeError('');
         try {
             await mergePullRequest(owner, repo, parseInt(pullNumber, 10));
+            setMergedSessionIds(prev => new Set(prev).add(sessionId));
+            setMergeSuccess(true);
             await queryClient.invalidateQueries({ queryKey: ['sessions'] });
         } catch (err: unknown) {
-            if (err instanceof Error) alert(`Merge failed: ${err.message}`);
+            if (err instanceof Error) setMergeError(`Merge failed: ${err.message}`);
         } finally {
             setActionLoading(null);
         }
@@ -270,6 +281,7 @@ export const HomeView = () => {
                             const needsApproval = session.requirePlanApproval && session.activities?.some((a: any) => a.planGenerated);
                             const prOutput = session.outputs?.find((o: any) => o.pullRequest);
                             const displayText = session.title || session.prompt || 'Untitled Session';
+                            const isMergedOpt = session.isMerged || mergedSessionIds.has(session.id);
                             return (
                                 <Card
                                     key={session.id}
@@ -304,8 +316,8 @@ export const HomeView = () => {
                                                     mb: 0.25
                                                 }}
                                             >
-                                                {displayText.length > 200
-                                                    ? displayText.substring(0, 200) + '...'
+                                                {displayText.length > 100
+                                                    ? displayText.substring(0, 100) + '...'
                                                     : displayText}
                                             </Typography>
                                             <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.8 }}>
@@ -323,7 +335,7 @@ export const HomeView = () => {
                                         <Box onClick={(e) => e.stopPropagation()} sx={{ flexShrink: 0 }}>
                                             {isCompleted ? (
                                                 prOutput ? (
-                                                    session.isMerged ? (
+                                                    isMergedOpt ? (
                                                         <Button
                                                             variant="contained"
                                                             disabled
@@ -437,6 +449,28 @@ export const HomeView = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Snackbar
+                open={mergeSuccess}
+                autoHideDuration={6000}
+                onClose={() => setMergeSuccess(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setMergeSuccess(false)} severity="success" sx={{ width: '100%', borderRadius: 2, fontSize: '0.85rem' }}>
+                    Pull request successfully merged!
+                </Alert>
+            </Snackbar>
+
+            <Snackbar
+                open={!!mergeError}
+                autoHideDuration={6000}
+                onClose={() => setMergeError('')}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setMergeError('')} severity="error" sx={{ width: '100%', borderRadius: 2, fontSize: '0.85rem' }}>
+                    {mergeError}
+                </Alert>
+            </Snackbar>
         </Container >
     );
 };
